@@ -6,7 +6,6 @@ import routes from './routes';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 8080;
 
 // Configurar middlewares
 setupMiddleware(app);
@@ -14,12 +13,5 @@ setupMiddleware(app);
 // Configurar rotas
 app.use('/api', routes);
 
-// Rota de verificação de saúde
-app.get('/health', (_req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
-// Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// Exportar o handler para a Vercel
+export default app;
