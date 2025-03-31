@@ -13,7 +13,7 @@ export function validateContactFormMiddleware(
       success: false,
       message: 'All fields are mandatory (name, email, message)',
     });
-    return; // Certifique-se de retornar aqui para evitar chamar `next()`
+    return;
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,8 +22,17 @@ export function validateContactFormMiddleware(
       success: false,
       message: 'Invalid email',
     });
-    return; // Certifique-se de retornar aqui para evitar chamar `next()`
+    return;
   }
 
-  next(); // Chame `next()` apenas se a validação passar
+  const maxMessageLength = 1000;
+  if (message.length > maxMessageLength) {
+    res.status(400).json({
+      success: false,
+      message: `Message is too long. Maximum length is ${maxMessageLength} characters.`,
+    });
+    return;
+  }
+
+  next();
 }
