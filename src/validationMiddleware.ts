@@ -11,7 +11,7 @@ export function validateContactFormMiddleware(
   if (!name || !email || !message) {
     res.status(400).json({
       success: false,
-      message: 'Todos os campos são obrigatórios (nome, email, mensagem)',
+      message: 'All fields are mandatory (name, email, message)',
     });
     return; // Certifique-se de retornar aqui para evitar chamar `next()`
   }
@@ -20,7 +20,7 @@ export function validateContactFormMiddleware(
   if (!emailRegex.test(email)) {
     res.status(400).json({
       success: false,
-      message: 'Email inválido',
+      message: 'Invalid email',
     });
     return; // Certifique-se de retornar aqui para evitar chamar `next()`
   }

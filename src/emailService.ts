@@ -5,7 +5,7 @@ function getSmtpConfig(): SmtpConfig {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
 
   if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
-    throw new Error('Configurações SMTP ausentes nas variáveis de ambiente.');
+    throw new Error('SMTP configuration is missing. Please check your environment variables.');
   }
 
   return {
