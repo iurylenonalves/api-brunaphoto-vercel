@@ -7,6 +7,9 @@ dotenv.config();
 
 const app = express();
 
+// Configurar o Express para confiar nos proxies
+app.set('trust proxy', 1);
+
 // Configurar middlewares
 setupMiddleware(app);
 
