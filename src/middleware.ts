@@ -7,7 +7,10 @@ export function setupMiddleware(app: Application): void {
   app.use(express.urlencoded({ extended: true }));
 
   app.use(cors({
-    origin: 'https://www.brunaalvesphoto.com',
+    origin: [
+      'https://brunaalvesphoto.com',
+      'https://www.brunaalvesphoto.com',
+    ],
     credentials: true,
   }));
 
