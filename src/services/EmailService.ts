@@ -1,5 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
-import { SmtpConfig } from './types';
+import { SmtpConfig } from '../types';
 
 function getSmtpConfig(): SmtpConfig {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
