@@ -1,20 +1,13 @@
-import express from 'express';
 import dotenv from 'dotenv';
-import { setupMiddleware } from './middleware';
-import routes from './routes';
+import app from './app'
 
 dotenv.config();
 
-const app = express();
+if (process.env.NODE_ENV !== 'production') {
+  const port = process.env.PORT || 8080;
+  app.listen(port, () => {
+    console.log(`🚀 Server is running on http://localhost:${port}`);
+  });
+}
 
-// Configurar o Express para confiar nos proxies
-app.set('trust proxy', 1);
-
-// Configurar middlewares
-setupMiddleware(app);
-
-// Configurar rotas
-app.use('/api', routes);
-
-// Exportar o handler para a Vercel
 export default app;
