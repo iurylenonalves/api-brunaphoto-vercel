@@ -12,10 +12,10 @@ try {
     .then(() => {
       console.log('Database connection established successfully');
     })
-    .catch(err => {
+    .catch((err: any) => {
       console.error('Failed to connect to database:', err);
     });
-} catch (error) {
+} catch (error: any) {
   console.error('Error initializing Prisma:', error);
 }
 
