@@ -7,8 +7,13 @@ import fs from 'fs/promises';
 
 // Remember to refactor
 
+const OUTPUT_DIR = 'tmp/uploads'; // Temporary directory for image processing
+
 // Helper function to process and save an image
 async function processAndSaveImage(file: Express.Multer.File): Promise<{ imagePath: string; thumbnailPath: string }> {
+  // Ensure the output directory exists /tmp
+  await fs.mkdir(OUTPUT_DIR, { recursive: true });
+
   const originalFilename = path.parse(file.filename).name;
   
   // Define the new filenames
@@ -16,8 +21,8 @@ async function processAndSaveImage(file: Express.Multer.File): Promise<{ imagePa
   const thumbnailFilename = `${originalFilename}-thumb.webp`;
 
   // Define the paths where the images will be saved
-  const imagePath = path.join('uploads', imageFilename);
-  const thumbnailPath = path.join('uploads', thumbnailFilename);
+  const imagePath = path.join(OUTPUT_DIR, imageFilename);
+  const thumbnailPath = path.join(OUTPUT_DIR, thumbnailFilename);
 
   // Read the file buffer
   const imageBuffer = await fs.readFile(file.path);
@@ -38,8 +43,10 @@ async function processAndSaveImage(file: Express.Multer.File): Promise<{ imagePa
   await fs.unlink(file.path);
 
   return { 
-    imagePath: imagePath.replace(/\\/g, '/'), 
-    thumbnailPath: thumbnailPath.replace(/\\/g, '/') 
+    imagePath: `uploads/${imageFilename}`, 
+    thumbnailPath: `uploads/${thumbnailFilename}`
+    //imagePath: imagePath.replace(/\\/g, '/'), 
+    //thumbnailPath: thumbnailPath.replace(/\\/g, '/') 
   };
 }
 

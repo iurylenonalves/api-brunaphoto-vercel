@@ -18,7 +18,7 @@ app.get('/health', (req, res) => {
 // 2. Serve static files from the 'uploads' folder
 // This allows the frontend to access saved images via URL
 // http://localhost:8080/uploads/nome-da-imagem.jpg
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/uploads', express.static(path.join('/tmp', 'uploads')));
 
 app.use(routes);
 
