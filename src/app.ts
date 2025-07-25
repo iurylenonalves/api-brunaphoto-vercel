@@ -11,7 +11,7 @@ app.set('trust proxy', 1);
 
 setupMiddleware(app);
 
-app.get('/api/health', (req, res) => {
+app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'API is healthy' });
 });
 
@@ -20,7 +20,7 @@ app.get('/api/health', (req, res) => {
 // http://localhost:8080/uploads/nome-da-imagem.jpg
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-app.use('/api', routes);
+app.use(routes);
 
 app.use(errorHandlerMiddleware);
 
