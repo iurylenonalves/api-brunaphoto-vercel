@@ -14,10 +14,6 @@ setupMiddleware(app);
 app.get(['/health', '/api/health'], (req, res) => {
   res.status(200).json({ status: 'ok', message: 'API is healthy (local)' });
 });
-
-app.get(['/health', '/api/health'], (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'API is healthy' });
-});
   
   // Se a URL original for /api/health, retorne a verificação de saúde
   // if (originalUrl === '/api/health') {
@@ -31,8 +27,8 @@ app.get(['/health', '/api/health'], (req, res) => {
   app.get('/', (req, res) => {
   res.status(200).json({ 
     message: 'Bruna Alves Photography API',
-    version: '1.0.0',
-    env: process.env.NODE_ENV || 'development'
+    docs: 'Check /api/health for status or /api/* for endpoints.',
+    version: '1.0.0'
   });
 });
 
@@ -56,6 +52,13 @@ app.use(routes);
 //     baseUrl: req.baseUrl
 //   });
 // });
+
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Endpoint not found',
+    message: 'Check the URL or consult the API documentation.'
+  });
+});
 
 app.use(errorHandlerMiddleware);
 
