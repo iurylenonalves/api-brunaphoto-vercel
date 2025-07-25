@@ -38,7 +38,7 @@ app.get(['/health', '/api/health'], (req, res) => {
 
 app.use('/uploads', express.static(path.join('/tmp', 'uploads')));
 
-app.use(routes);
+app.use('/api', routes);
 
 // app.use((req, res, next) => {
 //   if (res.headersSent) {
