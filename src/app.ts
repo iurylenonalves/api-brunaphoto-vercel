@@ -23,6 +23,15 @@ app.use('/uploads', express.static(path.join('/tmp', 'uploads')));
 
 app.use(routes);
 
+app.use('*', (req, res) => {
+  res.status(200).json({ 
+    message: 'Path inspector',
+    path: req.path,
+    originalUrl: req.originalUrl,
+    baseUrl: req.baseUrl
+  });
+});
+
 app.use(errorHandlerMiddleware);
 
 export default app;
