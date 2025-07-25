@@ -11,23 +11,25 @@ app.set('trust proxy', 1);
 
 setupMiddleware(app);
 
-app.get('/health', (req, res) => {
+app.get(['/health', '/api/health'], (req, res) => {
   res.status(200).json({ status: 'ok', message: 'API is healthy (local)' });
 });
 
-app.get('/', (req, res) => {
-  const originalUrl = req.originalUrl;
+app.get(['/health', '/api/health'], (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'API is healthy' });
+});
   
   // Se a URL original for /api/health, retorne a verificação de saúde
-  if (originalUrl === '/api/health') {
-    return res.status(200).json({ 
-      status: 'ok', 
-      message: 'API is healthy (production)'
-    });
-  }
+  // if (originalUrl === '/api/health') {
+  //   return res.status(200).json({ 
+  //     status: 'ok', 
+  //     message: 'API is healthy (production)'
+  //   });
+  // }
   
   // Caso contrário, continue para a próxima rota
-  return res.status(200).json({ 
+  app.get('/', (req, res) => {
+  res.status(200).json({ 
     message: 'Bruna Alves Photography API',
     version: '1.0.0',
     env: process.env.NODE_ENV || 'development'
@@ -42,18 +44,18 @@ app.use('/uploads', express.static(path.join('/tmp', 'uploads')));
 
 app.use(routes);
 
-app.use((req, res, next) => {
-  if (res.headersSent) {
-    return next();
-  }
+// app.use((req, res, next) => {
+//   if (res.headersSent) {
+//     return next();
+//   }
 
-  res.status(200).json({ 
-    message: 'Path inspector',
-    path: req.path,
-    originalUrl: req.originalUrl,
-    baseUrl: req.baseUrl
-  });
-});
+//   res.status(200).json({ 
+//     message: 'Path inspector',
+//     path: req.path,
+//     originalUrl: req.originalUrl,
+//     baseUrl: req.baseUrl
+//   });
+// });
 
 app.use(errorHandlerMiddleware);
 
