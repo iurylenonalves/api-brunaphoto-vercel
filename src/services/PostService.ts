@@ -7,7 +7,7 @@ import fs from 'fs/promises';
 
 // Remember to refactor
 
-const OUTPUT_DIR = 'tmp/uploads'; // Temporary directory for image processing
+const OUTPUT_DIR = '/tmp/uploads'; // Temporary directory for image processing
 
 // Helper function to process and save an image
 async function processAndSaveImage(file: Express.Multer.File): Promise<{ imagePath: string; thumbnailPath: string }> {

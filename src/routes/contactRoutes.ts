@@ -4,7 +4,7 @@ import { handlePostContact, handleGetContact } from '../controllers/contactContr
 
 const routes = express.Router();
 
-routes.route('/contacts')
+routes.route('/')
   .post(validateContactFormMiddleware, handlePostContact)
   .get(handleGetContact);
 
