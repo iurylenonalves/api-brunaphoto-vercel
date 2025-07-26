@@ -124,7 +124,10 @@ export class PostController {
       });
       
       console.log("[Controller] PostService.update finished successfully. Post ID:", updatedPost.id);
-      res.json(updatedPost);
+      res.json({
+        message: "Post updated successfully",
+        post: updatedPost,
+      });
       console.log("--- [PUT /api/posts/:slug] Request Finished Successfully ---\n");
     } catch (error) {
       console.error("--- !!! [PUT /api/posts/:slug] UNHANDLED ERROR IN CONTROLLER !!! ---");
@@ -145,7 +148,7 @@ export class PostController {
       }
 
       await this.postService.delete(slug, locale);
-      res.status(204).send();
+      res.json({ message: "Post deleted successfully." });
     } catch (error) {
       next(error);
     }

@@ -63,7 +63,15 @@ export class PostService {
       strict: true,
       remove: /[*+~.()'"!:@]/g,
     });    
-    const slug = `${slugBase}-${Date.now()}`;
+    const slug = slugBase;
+
+    // Check for duplicate post (same slug and locale)
+    const exists = await prisma.post.findUnique({
+      where: { slug_locale: { slug, locale } }
+    });
+    if (exists) {
+      throw new HttpError(409, "A post with this title already exists for this locale.");
+    }
 
     // The post thumbnail will be the thumbnail of the first image
     // const thumbnail = processedImages.length > 0 ? processedImages[0].thumbnailPath : null;
