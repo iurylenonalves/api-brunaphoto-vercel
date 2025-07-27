@@ -5,6 +5,10 @@ import { generateJWT } from '../utils/jwt';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+const allowedAdmins = process.env.ALLOWED_ADMINS
+  ? process.env.ALLOWED_ADMINS.split(",").map(email => email.trim())
+  : [];
+
 export const googleAuth: RequestHandler = async (req, res) => {
   const { credential } = req.body;
   if (!credential) {
@@ -20,6 +24,13 @@ export const googleAuth: RequestHandler = async (req, res) => {
     const payload = ticket.getPayload();
     if (!payload?.email) {
       res.status(401).json({ error: "No email found" });
+      return;
+    }
+
+    // Check if the user is an allowed admin    
+    if (!allowedAdmins.includes(payload.email)) {
+      console.warn(`Unauthorized login attempt: ${payload.email}`);
+      res.status(403).json({ error: "Access denied: not an admin" });
       return;
     }
 
