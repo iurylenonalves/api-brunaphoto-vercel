@@ -51,9 +51,9 @@ async function processAndSaveImage(file: Express.Multer.File): Promise<{ imagePa
 }
 
 export class PostService {
-  async create(data: { title: string; subtitle: string; locale: string; blocks: any[]; publishedAt?: string; files: Express.Multer.File[]; thumbnailSrc?: string; }) {
+  async create(data: { title: string; subtitle: string; locale: string; blocks: any[]; publishedAt?: string; files: Express.Multer.File[]; thumbnailSrc?: string; relatedSlug?: string }) {
     console.log("[Service] PostService.create called with title:", data.title);
-    const { title, subtitle, locale, blocks, publishedAt, files, thumbnailSrc } = data;
+    const { title, subtitle, locale, blocks, publishedAt, files, thumbnailSrc, relatedSlug } = data;
 
     // Process all uploaded images in parallel
     const processedImages = await Promise.all(files.map(file => processAndSaveImage(file)));
@@ -109,6 +109,7 @@ export class PostService {
       thumbnail: finalThumbnail,
       blocks: finalBlocks,
       publishedAt: publishedAt ? new Date(publishedAt) : null,
+      relatedSlug,
     };
 
     const newPost = await prisma.post.create({ data: postData });
@@ -150,6 +151,18 @@ export class PostService {
     return post;
   }
 
+  async findByRelatedSlug(relatedSlug: string, locale: string) {
+    const post = await prisma.post.findFirst({
+      where: { 
+        slug: relatedSlug, locale 
+      },
+    });
+    if (!post) {
+      throw new HttpError(404, "Related post not found.");
+    }
+    return post;
+  }
+
   async update(slug: string, locale: string, data: { 
     title: string; 
     subtitle: string; 
@@ -157,11 +170,12 @@ export class PostService {
     publishedAt?: string;
     files?: Express.Multer.File[];
     thumbnailSrc?: string;
+    relatedSlug?: string;
   }) {
     const existingPost = await prisma.post.findUnique({ where: { slug_locale: { slug, locale } } });
     if (!existingPost) throw new HttpError(404, "Post not found.");
 
-    const { title, subtitle, blocks, publishedAt, files = [], thumbnailSrc } = data;
+    const { title, subtitle, blocks, publishedAt, files = [], thumbnailSrc, relatedSlug } = data;
 
     // Process only the new images
     const processedImages = await Promise.all(files.map(file => processAndSaveImage(file)));
@@ -199,6 +213,7 @@ export class PostService {
       subtitle,
       blocks: finalBlocks,
       publishedAt: publishedAt ? new Date(publishedAt) : existingPost.publishedAt,
+      relatedSlug,
     };
 
     // Thumbnail logic during update

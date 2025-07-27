@@ -35,6 +35,7 @@ model Post {
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  relatedSlug String?   @db.VarChar(255)
 
   @@unique([slug, locale])
 }

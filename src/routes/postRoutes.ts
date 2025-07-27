@@ -10,6 +10,7 @@ const postService = new PostService();
 const postController = new PostController(postService);
 
 router.get("/", postController.getPosts);
+router.get("/related", postController.getRelatedPost);
 router.get("/:slug", postController.getPostBySlug);
 
 router.post("/", requireAuth, upload.array("images"), postController.create);

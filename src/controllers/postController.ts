@@ -32,10 +32,27 @@ export class PostController {
     }
   };
 
+  getRelatedPost: Handler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { relatedSlug } = req.query;
+      const { locale } = req.query;
+
+      if (typeof relatedSlug !== "string" || typeof locale !== "string") {
+        res.status(400).json({ error: "relatedSlug and locale query parameters are required." });
+        return;
+      }
+
+      const post = await this.postService.findByRelatedSlug(relatedSlug, locale);
+      res.json(post);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   create: Handler = async (req: Request, res: Response, next: NextFunction) => {
     console.log("\n--- [POST /api/posts] Received Request ---");
     try {
-      const { title, subtitle, locale, blocks, publishedAt, thumbnailSrc } = req.body;
+      const { title, subtitle, locale, blocks, publishedAt, thumbnailSrc, relatedSlug } = req.body;
       const imageFiles = req.files as Express.Multer.File[];
       console.log("[Controller] Received data:", { title, subtitle, locale, publishedAt });
       console.log(`[Controller] Received ${imageFiles?.length || 0} files.`);
@@ -72,6 +89,7 @@ export class PostController {
         publishedAt,
         files: imageFiles,
         thumbnailSrc: thumbnailSrc,
+        relatedSlug: relatedSlug,
       });
       console.log("[Controller] PostService.create finished successfully. Post ID:", newPost.id);
 
@@ -89,7 +107,7 @@ export class PostController {
     console.log("\n--- [PUT /api/posts/:slug] Received Update Request ---");
     try {
       const { slug } = req.params;
-      const { locale, title, subtitle, blocks, publishedAt, thumbnailSrc } = req.body;
+      const { locale, title, subtitle, blocks, publishedAt, thumbnailSrc, relatedSlug } = req.body;
       const imageFiles = req.files as Express.Multer.File[];
       
       console.log("[Controller] Update request for slug:", slug);
@@ -121,6 +139,7 @@ export class PostController {
         publishedAt,
         files: imageFiles,
         thumbnailSrc: thumbnailSrc,
+        relatedSlug: relatedSlug,
       });
       
       console.log("[Controller] PostService.update finished successfully. Post ID:", updatedPost.id);
