@@ -2,52 +2,84 @@ import { prisma } from "../database/client";
 import slugify from "slugify";
 import { HttpError } from "../errors/HttpError";
 import sharp from 'sharp';
-import path from 'path';
-import fs from 'fs/promises';
+//import path from 'path';
+//import fs from 'fs/promises';
+import { put } from "@vercel/blob";
+import { del } from "@vercel/blob";
 
-// Remember to refactor
+// TODO: Migrate to Vercel Blob storage
+//const OUTPUT_DIR = '/tmp/uploads'; // Temporary directory for image processing - NEEDS VERCEL BLOB
 
-const OUTPUT_DIR = '/tmp/uploads'; // Temporary directory for image processing
-
-// Helper function to process and save an image
-async function processAndSaveImage(file: Express.Multer.File): Promise<{ imagePath: string; thumbnailPath: string }> {
+// Helper function to process and upload an image
+async function processAndUploadImage(file: Express.Multer.File): Promise<{ imageUrl: string; thumbnailUrl: string }> {
   // Ensure the output directory exists /tmp
-  await fs.mkdir(OUTPUT_DIR, { recursive: true });
+  //await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-  const originalFilename = path.parse(file.filename).name;
+  const fileName = `posts/${Date.now()}-${slugify(file.originalname, { lower: true })}`;
   
   // Define the new filenames
-  const imageFilename = `${originalFilename}.webp`;
-  const thumbnailFilename = `${originalFilename}-thumb.webp`;
+  // const imageFilename = `${originalFilename}.webp`;
+  // const thumbnailFilename = `${originalFilename}-thumb.webp`;
 
   // Define the paths where the images will be saved
-  const imagePath = path.join(OUTPUT_DIR, imageFilename);
-  const thumbnailPath = path.join(OUTPUT_DIR, thumbnailFilename);
+  // const imagePath = path.join(OUTPUT_DIR, imageFilename);
+  // const thumbnailPath = path.join(OUTPUT_DIR, thumbnailFilename);
+
+  // Define the paths where the images will be saved
+  const imagePath = `${fileName}.webp`;
+  const thumbnailPath = `${fileName}-thumb.webp`;
 
   // Read the file buffer
-  const imageBuffer = await fs.readFile(file.path);
+  // const imageBuffer = await fs.readFile(file.path);
 
-  // Process the main image from the buffer (resize and convert to webp)
-  await sharp(imageBuffer)
-    .resize({ width: 1920, withoutEnlargement: true })
-    .webp({ quality: 80 })
-    .toFile(imagePath);
+  // // Process the main image from the buffer (resize and convert to webp)
+  // await sharp(imageBuffer)
+  //   .resize({ width: 1920, withoutEnlargement: true })
+  //   .webp({ quality: 80 })
+  //   .toFile(imagePath);
 
-  // Process the thumbnail from the same buffer (resize to 400px and convert to webp)
-  await sharp(imageBuffer)
-    .resize({ width: 400 })
-    .webp({ quality: 75 })
-    .toFile(thumbnailPath);
+  // // Process the thumbnail from the same buffer (resize to 400px and convert to webp)
+  // await sharp(imageBuffer)
+  //   .resize({ width: 400 })
+  //   .webp({ quality: 75 })
+  //   .toFile(thumbnailPath);
 
-  // Remove the original file uploaded by multer
-  await fs.unlink(file.path);
+  // // Remove the original file uploaded by multer
+  // await fs.unlink(file.path);
 
-  return { 
-    imagePath: `uploads/${imageFilename}`, 
-    thumbnailPath: `uploads/${thumbnailFilename}`
-    //imagePath: imagePath.replace(/\\/g, '/'), 
-    //thumbnailPath: thumbnailPath.replace(/\\/g, '/') 
-  };
+  try {
+    // Process the main image from the buffer (resize and convert to webp)
+    const imageBuffer = await sharp(file.buffer)
+      .resize({ width: 1920, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+    
+    // Save the main image to Vercel Blob storage
+    const imageBlob = await put(imagePath, imageBuffer, {
+      access: 'public',
+      contentType: 'image/webp',
+    });
+
+    // Process the thumbnail from the same buffer (resize to 400px and convert to webp)
+    const thumbnailBuffer = await sharp(file.buffer)
+      .resize({ width: 400, fit: 'inside' })
+      .webp({ quality: 75 })
+      .toBuffer();
+
+    // Save the thumbnail to Vercel Blob storage 
+    const thumbnailBlob = await put(thumbnailPath, thumbnailBuffer, {
+      access: 'public',
+      contentType: 'image/webp',
+    });
+
+    return { 
+      imageUrl: imageBlob.url, 
+      thumbnailUrl: thumbnailBlob.url
+    };
+  } catch (error) {
+    console.error('Erro ao processar e fazer upload da imagem:', error);
+    throw new HttpError(500, 'Falha no processamento ou upload da imagem');
+  }
 }
 
 export class PostService {
@@ -56,7 +88,13 @@ export class PostService {
     const { title, subtitle, locale, blocks, publishedAt, files, thumbnailSrc, relatedSlug } = data;
 
     // Process all uploaded images in parallel
-    const processedImages = await Promise.all(files.map(file => processAndSaveImage(file)));
+    let processedImages: { imageUrl: string; thumbnailUrl: string }[] = [];
+    try {
+      processedImages = await Promise.all(files.map(file => processAndUploadImage(file)));
+    } catch (error) {
+      console.error('Erro ao processar imagens no create:', error);
+      throw new HttpError(500, 'Falha ao processar as imagens');
+    }
 
     const slugBase = slugify(title, {
       lower: true,
@@ -82,7 +120,7 @@ export class PostService {
         // Use the path of the processed main image
         const currentImage = processedImages[imageIndex];
         imageIndex++;
-        return { ...block, src: currentImage.imagePath };
+        return { ...block, src: currentImage.imageUrl };
       }
       return block;
     });
@@ -93,12 +131,12 @@ export class PostService {
       // Find the index of the thumbnailSrc in the blocks
       const thumbBlockIndex = blocks.findIndex((b, i) => thumbnailSrc === 'new-image-' + i);
       if (thumbBlockIndex !== -1 && processedImages[thumbBlockIndex]) {
-        finalThumbnail = processedImages[thumbBlockIndex].thumbnailPath;
+        finalThumbnail = processedImages[thumbBlockIndex].thumbnailUrl;
       }
     }
     // Fallback: if none was chosen, take the first
     if (!finalThumbnail && processedImages.length > 0) {
-      finalThumbnail = processedImages[0].thumbnailPath;
+      finalThumbnail = processedImages[0].thumbnailUrl;
     }
 
     const postData = {
@@ -178,7 +216,13 @@ export class PostService {
     const { title, subtitle, blocks, publishedAt, files = [], thumbnailSrc, relatedSlug } = data;
 
     // Process only the new images
-    const processedImages = await Promise.all(files.map(file => processAndSaveImage(file)));
+    let processedImages: { imageUrl: string; thumbnailUrl: string }[] = [];
+    try {
+      processedImages = await Promise.all(files.map(file => processAndUploadImage(file)));
+    } catch (error) {
+      console.error('Erro ao processar novas imagens no update:', error);
+      throw new HttpError(500, 'Falha ao processar as novas imagens');
+    }
     
     const placeholderPositions: number[] = [];
     blocks.forEach((block, index) => {
@@ -191,7 +235,7 @@ export class PostService {
     const finalBlocks = blocks.map((block, index) => {
       if (block.type === 'image') {
         if (placeholderPositions.includes(index) && processedImages[newImageIndex]) {
-          const result = { ...block, src: processedImages[newImageIndex].imagePath };
+          const result = { ...block, src: processedImages[newImageIndex].imageUrl };
           newImageIndex++;
           return result;
         }
@@ -224,7 +268,7 @@ export class PostService {
       const processedImageIndex = placeholderPositions.indexOf(newImageBlockIndex);
 
       if (processedImageIndex !== -1 && processedImages[processedImageIndex]) {
-        updateData.thumbnail = processedImages[processedImageIndex].thumbnailPath;
+        updateData.thumbnail = processedImages[processedImageIndex].thumbnailUrl;
       } else {
         // If the chosen thumbnail is an existing image, the `thumbnailSrc` will be its path.
         // We need to find the corresponding block to ensure the thumbnail is the -thumb.webp version
@@ -236,7 +280,7 @@ export class PostService {
       }
     } else if (processedImages.length > 0 && !existingPost.thumbnail) {
       // If no thumbnail was previously set and new images were added, set the first new one as the thumbnail
-      updateData.thumbnail = processedImages[0].thumbnailPath;
+      updateData.thumbnail = processedImages[0].thumbnailUrl;
     }
 
     return prisma.post.update({
@@ -253,6 +297,35 @@ export class PostService {
     if (!postExists) {
       throw new HttpError(404, "Post to delete not found.");
     }
+
+    // Coleta todas as URLs de imagem do post
+    const imageUrls: string[] = [];
+     if (postExists.thumbnail) {
+       imageUrls.push(postExists.thumbnail as string);
+     }
+     (postExists.blocks as any[]).forEach(block => {
+       if (block.type === 'image' && block.src) {
+         imageUrls.push(block.src);
+         // Adiciona a URL do thumbnail correspondente para deleção
+         imageUrls.push(block.src.replace('.webp', '-thumb.webp'));
+       }
+     });
+   
+     // Filtra apenas URLs do Vercel Blob antes de deletar
+     const vercelBlobUrls = imageUrls.filter(url => 
+       url.includes('vercel-storage.com') || url.includes('blob.vercel-storage.com')
+     );
+     
+     // Deleta apenas as imagens do Vercel Blob
+     if (vercelBlobUrls.length > 0) {
+       try {
+         await del(vercelBlobUrls);
+         console.log(`Deletadas ${vercelBlobUrls.length} imagens do Vercel Blob`);
+       } catch (error) {
+         console.error('Erro ao deletar imagens do Vercel Blob:', error);
+         // Continue com a deleção do post mesmo se falhar ao deletar as imagens
+       }
+     }
 
     return prisma.post.delete({
       where: {
