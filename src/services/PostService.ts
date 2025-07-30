@@ -2,8 +2,6 @@ import { prisma } from "../database/client";
 import slugify from "slugify";
 import { HttpError } from "../errors/HttpError";
 import sharp from 'sharp';
-//import path from 'path';
-//import fs from 'fs/promises';
 import { put } from "@vercel/blob";
 import { del } from "@vercel/blob";
 
@@ -15,45 +13,16 @@ function generateThumbnailUrl(imageUrl: string): string {
   return imageUrl.replace('.webp', '-thumb.webp');
 }
 
-// TODO: Migrate to Vercel Blob storage
-//const OUTPUT_DIR = '/tmp/uploads'; // Temporary directory for image processing - NEEDS VERCEL BLOB
-
 // Helper function to process and upload an image
 async function processAndUploadImage(file: Express.Multer.File): Promise<{ imageUrl: string; thumbnailUrl: string }> {
-  // Ensure the output directory exists /tmp
-  //await fs.mkdir(OUTPUT_DIR, { recursive: true });
-
-  const fileName = `posts/${Date.now()}-${slugify(file.originalname, { lower: true })}`;
+  // Remove a extensão original e cria um nome base
+  const originalName = file.originalname;
+  const nameWithoutExt = originalName.replace(/\.[^/.]+$/, ""); // Remove a extensão
+  const fileName = `posts/${Date.now()}-${slugify(nameWithoutExt, { lower: true })}`;
   
-  // Define the new filenames
-  // const imageFilename = `${originalFilename}.webp`;
-  // const thumbnailFilename = `${originalFilename}-thumb.webp`;
-
-  // Define the paths where the images will be saved
-  // const imagePath = path.join(OUTPUT_DIR, imageFilename);
-  // const thumbnailPath = path.join(OUTPUT_DIR, thumbnailFilename);
-
   // Define the paths where the images will be saved
   const imagePath = `${fileName}.webp`;
   const thumbnailPath = `${fileName}-thumb.webp`;
-
-  // Read the file buffer
-  // const imageBuffer = await fs.readFile(file.path);
-
-  // // Process the main image from the buffer (resize and convert to webp)
-  // await sharp(imageBuffer)
-  //   .resize({ width: 1920, withoutEnlargement: true })
-  //   .webp({ quality: 80 })
-  //   .toFile(imagePath);
-
-  // // Process the thumbnail from the same buffer (resize to 400px and convert to webp)
-  // await sharp(imageBuffer)
-  //   .resize({ width: 400 })
-  //   .webp({ quality: 75 })
-  //   .toFile(thumbnailPath);
-
-  // // Remove the original file uploaded by multer
-  // await fs.unlink(file.path);
 
   try {
     // Process the main image from the buffer (resize and convert to webp)
