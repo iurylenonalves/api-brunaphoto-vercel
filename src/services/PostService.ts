@@ -7,6 +7,14 @@ import sharp from 'sharp';
 import { put } from "@vercel/blob";
 import { del } from "@vercel/blob";
 
+// Helper function to generate thumbnail URL from main image URL
+function generateThumbnailUrl(imageUrl: string): string {
+  if (imageUrl.includes('-thumb.webp')) {
+    return imageUrl; // Já é um thumbnail
+  }
+  return imageUrl.replace('.webp', '-thumb.webp');
+}
+
 // TODO: Migrate to Vercel Blob storage
 //const OUTPUT_DIR = '/tmp/uploads'; // Temporary directory for image processing - NEEDS VERCEL BLOB
 
@@ -275,7 +283,7 @@ export class PostService {
         const existingBlock = finalBlocks.find(b => b.src === thumbnailSrc);
         if (existingBlock && typeof existingBlock.src === 'string') {
           // Generate the thumbnail path from the main image path
-          updateData.thumbnail = existingBlock.src.replace('.webp', '-thumb.webp');
+          updateData.thumbnail = generateThumbnailUrl(existingBlock.src);
         }
       }
     } else if (processedImages.length > 0 && !existingPost.thumbnail) {
@@ -309,9 +317,9 @@ export class PostService {
         if (block.type === 'image' && block.src) {
           imageUrls.push(block.src);
 
-          // Se não for um thumbnail (não termina com -thumb.webp), adiciona o thumbnail correspondente
-          if (!block.src.endsWith('-thumb.webp')) {
-            const thumbnailUrl = block.src.replace('.webp', '-thumb.webp');
+          // Se não for um thumbnail, adiciona o thumbnail correspondente
+          if (!block.src.includes('-thumb.webp')) {
+            const thumbnailUrl = generateThumbnailUrl(block.src);
             imageUrls.push(thumbnailUrl);
           }
         }
