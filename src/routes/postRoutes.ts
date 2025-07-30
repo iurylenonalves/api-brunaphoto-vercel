@@ -2,7 +2,7 @@ import { Router } from "express";
 import { PostController } from "../controllers/postController";
 import { PostService } from "../services/PostService";
 import { requireAuth } from "../middlewares/auth";
-import { upload } from "../middlewares/upload";
+import { upload } from "../middlewares/multer";
 
 const router = Router();
 
