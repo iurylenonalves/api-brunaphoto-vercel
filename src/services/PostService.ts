@@ -300,21 +300,32 @@ export class PostService {
 
     // Coleta todas as URLs de imagem do post
     const imageUrls: string[] = [];
-     if (postExists.thumbnail) {
-       imageUrls.push(postExists.thumbnail as string);
-     }
-     (postExists.blocks as any[]).forEach(block => {
-       if (block.type === 'image' && block.src) {
-         imageUrls.push(block.src);
-         // Adiciona a URL do thumbnail correspondente para deleção
-         imageUrls.push(block.src.replace('.webp', '-thumb.webp'));
-       }
+      if (postExists.thumbnail) {
+        imageUrls.push(postExists.thumbnail as string);
+      }
+
+      // Coleta URLs de imagens dos blocos
+      (postExists.blocks as any[]).forEach(block => {
+        if (block.type === 'image' && block.src) {
+          imageUrls.push(block.src);
+
+          // Se não for um thumbnail (não termina com -thumb.webp), adiciona o thumbnail correspondente
+          if (!block.src.endsWith('-thumb.webp')) {
+            const thumbnailUrl = block.src.replace('.webp', '-thumb.webp');
+            imageUrls.push(thumbnailUrl);
+          }
+        }
      });
+
+     // Log para debug - adicione isso temporariamente
+     console.log('URLs coletadas para deleção:', imageUrls);
    
      // Filtra apenas URLs do Vercel Blob antes de deletar
      const vercelBlobUrls = imageUrls.filter(url => 
        url.includes('vercel-storage.com') || url.includes('blob.vercel-storage.com')
      );
+
+     console.log('URLs do Vercel Blob para deletar:', vercelBlobUrls);
      
      // Deleta apenas as imagens do Vercel Blob
      if (vercelBlobUrls.length > 0) {
