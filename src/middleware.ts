@@ -10,17 +10,20 @@ export function setupMiddleware(app: Application): void {
     origin: [
       'https://brunaalvesphoto.com',
       'https://www.brunaalvesphoto.com',
+      'http://localhost:3000',
     ],
     credentials: true,
   }));
 
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 30, // 
+     max: process.env.NODE_ENV === 'production' ? 100 : 1000, 
     message: {
       success: false,
       message: 'Too many requests from this IP, please try again later.',
     },
+    standardHeaders: true, 
+    legacyHeaders: false, 
   });
 
   app.use(limiter);

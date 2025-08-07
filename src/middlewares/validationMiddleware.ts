@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { ContactFormData } from './types';
+import { ContactFormData } from '../types';
 
 export function validateContactFormMiddleware(
   req: Request<{}, {}, ContactFormData>,
