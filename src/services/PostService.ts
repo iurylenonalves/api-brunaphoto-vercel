@@ -37,10 +37,10 @@ async function processAndUploadImage(file: Express.Multer.File): Promise<{ image
       contentType: 'image/webp',
     });
 
-    // Process the thumbnail from the same buffer (resize to 400px and convert to webp)
+    // Process the thumbnail from the same buffer (resize to 500px and convert to webp)
     const thumbnailBuffer = await sharp(file.buffer)
-      .resize({ width: 400, fit: 'inside' })
-      .webp({ quality: 75 })
+      .resize({ width: 500, fit: 'inside' })
+      .webp({ quality: 85 })
       .toBuffer();
 
     // Save the thumbnail to Vercel Blob storage 
