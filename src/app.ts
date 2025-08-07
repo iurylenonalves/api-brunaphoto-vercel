@@ -1,6 +1,5 @@
 import express from 'express';
 import 'express-async-errors'; 
-import path from 'path'; 
 import { setupMiddleware } from './middleware';
 import routes from './routes/index';
 import { errorHandlerMiddleware } from './middlewares/error-handler';
@@ -31,12 +30,6 @@ app.get(['/health', '/api/health'], (req, res) => {
     version: '1.0.0'
   });
 });
-
-// 2. Serve static files from the 'uploads' folder
-// This allows the frontend to access saved images via URL
-// http://localhost:8080/uploads/nome-da-imagem.jpg
-
-app.use('/uploads', express.static(path.join('/tmp', 'uploads')));
 
 app.use('/api', routes);
 
