@@ -64,13 +64,32 @@ export class PostService {
     console.log("[Service] PostService.create called with title:", data.title);
     const { title, subtitle, locale, blocks, publishedAt, files, thumbnailSrc, relatedSlug } = data;
 
-    // Process all uploaded images in parallel
+    // Two flows: legacy multipart (files present) vs client-upload (blocks contain blob URLs)
     let processedImages: { imageUrl: string; thumbnailUrl: string }[] = [];
-    try {
-      processedImages = await Promise.all(files.map(file => processAndUploadImage(file)));
-    } catch (error) {
-      console.error('Erro ao processar imagens no create:', error);
-      throw new HttpError(500, 'Falha ao processar as imagens');
+    let finalBlocks = data.blocks;
+    if (files && files.length > 0) {
+      try {
+        processedImages = await Promise.all(files.map(file => processAndUploadImage(file)));
+      } catch (error) {
+        console.error('Erro ao processar imagens no create:', error);
+        throw new HttpError(500, 'Falha ao processar as imagens');
+      }
+
+      let imageIndex = 0;
+      finalBlocks = data.blocks.map(block => {
+        if (block.type === 'image' && processedImages[imageIndex]) {
+          const currentImage = processedImages[imageIndex];
+          imageIndex++;
+          return { ...block, src: currentImage.imageUrl };
+        }
+        return block;
+      });
+    } else {
+      // Client-upload flow: ensure images have src URLs
+      const hasImageUrl = Array.isArray(data.blocks) && data.blocks.some((b: any) => b?.type === 'image' && typeof b?.src === 'string' && b.src);
+      if (!hasImageUrl) {
+        throw new HttpError(400, 'At least one image URL is required in blocks.');
+      }
     }
 
     const slugBase = slugify(title, {
@@ -88,32 +107,32 @@ export class PostService {
       throw new HttpError(409, "A post with this title already exists for this locale.");
     }
 
-    // The post thumbnail will be the thumbnail of the first image
-    // const thumbnail = processedImages.length > 0 ? processedImages[0].thumbnailPath : null;
-
-    let imageIndex = 0;
-    const finalBlocks = blocks.map(block => {
-      if (block.type === 'image' && processedImages[imageIndex]) {
-        // Use the path of the processed main image
-        const currentImage = processedImages[imageIndex];
-        imageIndex++;
-        return { ...block, src: currentImage.imageUrl };
-      }
-      return block;
-    });
-
     // Thumbnail logic
-    let finalThumbnail = null;
+    let finalThumbnail: string | null = null;
     if (thumbnailSrc) {
-      // Find the index of the thumbnailSrc in the blocks
-      const thumbBlockIndex = blocks.findIndex((b, i) => thumbnailSrc === 'new-image-' + i);
+      // In legacy flow, a "new-image-{i}" marker indicates the chosen file index
+      const thumbBlockIndex = data.blocks.findIndex((b, i) => thumbnailSrc === 'new-image-' + i);
       if (thumbBlockIndex !== -1 && processedImages[thumbBlockIndex]) {
         finalThumbnail = processedImages[thumbBlockIndex].thumbnailUrl;
+      } else {
+        // In client-upload flow, thumbnailSrc can be a URL from an existing block
+        const existingBlock = finalBlocks.find((b: any) => b?.type === 'image' && b?.src && b.src === thumbnailSrc);
+        if (existingBlock && typeof existingBlock.src === 'string') {
+          finalThumbnail = generateThumbnailUrl(existingBlock.src);
+        }
       }
     }
-    // Fallback: if none was chosen, take the first
-    if (!finalThumbnail && processedImages.length > 0) {
-      finalThumbnail = processedImages[0].thumbnailUrl;
+    // Fallbacks
+    if (!finalThumbnail) {
+      if (processedImages.length > 0) {
+        finalThumbnail = processedImages[0].thumbnailUrl;
+      } else {
+        // Client-upload flow: derive from first image block url
+        const firstImage = finalBlocks.find((b: any) => b?.type === 'image' && b?.src);
+        if (firstImage) {
+          finalThumbnail = generateThumbnailUrl(firstImage.src);
+        }
+      }
     }
 
     const postData = {
@@ -122,7 +141,7 @@ export class PostService {
       subtitle,
       locale,
       thumbnail: finalThumbnail,
-      blocks: finalBlocks,
+  blocks: finalBlocks,
       publishedAt: publishedAt ? new Date(publishedAt) : null,
       relatedSlug,
     };
@@ -192,13 +211,15 @@ export class PostService {
 
     const { title, subtitle, blocks, publishedAt, files = [], thumbnailSrc, relatedSlug } = data;
 
-    // Process only the new images
+    // Process only the new images (legacy flow); client-upload flow sends ready URLs in blocks
     let processedImages: { imageUrl: string; thumbnailUrl: string }[] = [];
-    try {
-      processedImages = await Promise.all(files.map(file => processAndUploadImage(file)));
-    } catch (error) {
-      console.error('Erro ao processar novas imagens no update:', error);
-      throw new HttpError(500, 'Falha ao processar as novas imagens');
+    if (files && files.length > 0) {
+      try {
+        processedImages = await Promise.all(files.map(file => processAndUploadImage(file)));
+      } catch (error) {
+        console.error('Erro ao processar novas imagens no update:', error);
+        throw new HttpError(500, 'Falha ao processar as novas imagens');
+      }
     }
     
     const placeholderPositions: number[] = [];
@@ -209,14 +230,14 @@ export class PostService {
     });
 
     let newImageIndex = 0;
-    const finalBlocks = blocks.map((block, index) => {
+  const finalBlocks = blocks.map((block, index) => {
       if (block.type === 'image') {
         if (placeholderPositions.includes(index) && processedImages[newImageIndex]) {
           const result = { ...block, src: processedImages[newImageIndex].imageUrl };
           newImageIndex++;
           return result;
         }
-        if (block.src && block.src !== 'image-placeholder') {
+    if (block.src && block.src !== 'image-placeholder') {
           return block;
         }
         // Try to recover from the existing post if there is no new image for this block
@@ -238,7 +259,7 @@ export class PostService {
     };
 
     // Thumbnail logic during update
-    if (thumbnailSrc) {
+  if (thumbnailSrc) {
       // If the chosen thumbnail is a new image
       const newImageBlockIndex = blocks.findIndex((b, i) => thumbnailSrc === 'new-image-' + i);
       // Map the block index to the processed images array index

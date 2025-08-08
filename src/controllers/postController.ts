@@ -52,10 +52,10 @@ export class PostController {
   create: Handler = async (req: Request, res: Response, next: NextFunction) => {
     console.log("\n--- [POST /api/posts] Received Request ---");
     try {
-      const { title, subtitle, locale, blocks, publishedAt, thumbnailSrc, relatedSlug } = req.body;
-      const imageFiles = req.files as Express.Multer.File[];
-      console.log("[Controller] Received data:", { title, subtitle, locale, publishedAt });
-      console.log(`[Controller] Received ${imageFiles?.length || 0} files.`);
+  const { title, subtitle, locale, blocks, publishedAt, thumbnailSrc, relatedSlug } = req.body;
+  const imageFiles = (req.files as Express.Multer.File[]) || [];
+  console.log("[Controller] Received data:", { title, subtitle, locale, publishedAt });
+  console.log(`[Controller] Received ${imageFiles?.length || 0} files.`);
 
       if (!title || !subtitle || !locale || !blocks) {
         console.error("[Controller] Validation failed: Missing required fields.");
@@ -63,20 +63,33 @@ export class PostController {
         return;
       }
 
+      // If using old flow (multipart + multer), we require files.
+      // If using new flow (client -> Blob), image URLs must already be in blocks.
       if (!imageFiles || imageFiles.length === 0) {
-        console.error("[Controller] Validation failed: No images uploaded.");
-        res.status(400).json({ error: "At least one image is required." });
-        return;
+        const candidateBlocks = typeof blocks === 'string' ? (() => { try { return JSON.parse(blocks); } catch { return null; } })() : blocks;
+        const hasImage = Array.isArray(candidateBlocks) && candidateBlocks.some((b: any) => b?.type === 'image' && b?.src);
+        if (!hasImage) {
+          console.error("[Controller] Validation failed: No images provided in blocks.");
+          res.status(400).json({ error: "At least one image is required (provide Blob URLs in blocks)." });
+          return;
+        }
       }
       
-      let parsedBlocks;
-      try {
-        console.log("[Controller] Parsing 'blocks' JSON string...");
-        parsedBlocks = JSON.parse(blocks);
-        console.log("[Controller] 'blocks' parsed successfully.");
-      } catch (e) {
-        console.error("[Controller] Failed to parse 'blocks' JSON:", blocks, e);
-        res.status(400).json({ error: "Invalid format for 'blocks'. It must be a valid JSON string." });
+      let parsedBlocks: any[];
+      if (typeof blocks === 'string') {
+        try {
+          console.log("[Controller] Parsing 'blocks' JSON string...");
+          parsedBlocks = JSON.parse(blocks);
+          console.log("[Controller] 'blocks' parsed successfully.");
+        } catch (e) {
+          console.error("[Controller] Failed to parse 'blocks' JSON:", blocks, e);
+          res.status(400).json({ error: "Invalid format for 'blocks'." });
+          return;
+        }
+      } else if (Array.isArray(blocks)) {
+        parsedBlocks = blocks as any[];
+      } else {
+        res.status(400).json({ error: "Invalid 'blocks' payload." });
         return;
       }
       
@@ -103,36 +116,43 @@ export class PostController {
     }
   };
 
-   update: Handler = async (req: Request, res: Response, next: NextFunction) => {
+  update: Handler = async (req: Request, res: Response, next: NextFunction) => {
     console.log("\n--- [PUT /api/posts/:slug] Received Update Request ---");
     try {
       const { slug } = req.params;
       const { locale, title, subtitle, blocks, publishedAt, thumbnailSrc, relatedSlug } = req.body;
-      const imageFiles = req.files as Express.Multer.File[];
+  const imageFiles = (req.files as Express.Multer.File[]) || [];
       
       console.log("[Controller] Update request for slug:", slug);
       console.log("[Controller] Received data:", { title, subtitle, locale, publishedAt });
       console.log(`[Controller] Received ${imageFiles?.length || 0} new files.`);
   
-      if (!title || !subtitle || !locale || !blocks) {
+  if (!title || !subtitle || !locale || !blocks) {
         console.error("[Controller] Validation failed: Missing required fields.");
         res.status(400).json({ error: "Title, subtitle, locale, and blocks are required." });
         return;
       }
       
-      let parsedBlocks;
-      try {
-        console.log("[Controller] Parsing 'blocks' JSON string...");
-        parsedBlocks = JSON.parse(blocks);
-        console.log("[Controller] 'blocks' parsed successfully.");
-      } catch (e) {
-        console.error("[Controller] Failed to parse 'blocks' JSON:", blocks, e);
-        res.status(400).json({ error: "Invalid format for 'blocks'. It must be a valid JSON string." });
+      let parsedBlocks: any[];
+      if (typeof blocks === 'string') {
+        try {
+          console.log("[Controller] Parsing 'blocks' JSON string...");
+          parsedBlocks = JSON.parse(blocks);
+          console.log("[Controller] 'blocks' parsed successfully.");
+        } catch (e) {
+          console.error("[Controller] Failed to parse 'blocks' JSON:", blocks, e);
+          res.status(400).json({ error: "Invalid format for 'blocks'." });
+          return;
+        }
+      } else if (Array.isArray(blocks)) {
+        parsedBlocks = blocks as any[];
+      } else {
+        res.status(400).json({ error: "Invalid 'blocks' payload." });
         return;
       }
       
       console.log("[Controller] Calling PostService.update...");
-      const updatedPost = await this.postService.update(slug, locale, {
+  const updatedPost = await this.postService.update(slug, locale, {
         title,
         subtitle,
         blocks: parsedBlocks,
