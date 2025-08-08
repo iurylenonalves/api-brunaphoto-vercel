@@ -67,6 +67,7 @@ export class PostService {
     // Two flows: legacy multipart (files present) vs client-upload (blocks contain blob URLs)
     let processedImages: { imageUrl: string; thumbnailUrl: string }[] = [];
     let finalBlocks = data.blocks;
+
     if (files && files.length > 0) {
       try {
         processedImages = await Promise.all(files.map(file => processAndUploadImage(file)));
@@ -90,6 +91,39 @@ export class PostService {
       if (!hasImageUrl) {
         throw new HttpError(400, 'At least one image URL is required in blocks.');
       }
+
+      // Geração do thumbnail -thumb.webp para o primeiro bloco de imagem
+      const firstImageBlock = data.blocks.find((b: any) => b?.type === 'image' && typeof b?.src === 'string' && b.src);
+      let generatedThumbUrl: string | null = null;
+      if (firstImageBlock && firstImageBlock.src) {
+        try {
+          // Baixar a imagem original do Blob
+          const response = await fetch(firstImageBlock.src);
+          if (!response.ok) throw new Error('Falha ao baixar imagem do Blob');
+          const buffer = Buffer.from(await response.arrayBuffer());
+          // Gerar thumbnail com sharp
+          const thumbBuffer = await sharp(buffer)
+            .resize({ width: 500, fit: 'inside' })
+            .webp({ quality: 85 })
+            .toBuffer();
+          // Montar path do thumb
+          const urlObj = new URL(firstImageBlock.src);
+          const pathParts = urlObj.pathname.split("/");
+          const fileName = pathParts[pathParts.length - 1];
+          const baseName = fileName.replace(/\.webp$/, "");
+          const thumbPath = `posts/${baseName}-thumb.webp`;
+          // Subir para o Blob
+          const { url: thumbUrl } = await put(thumbPath, thumbBuffer, {
+            access: 'public',
+            contentType: 'image/webp',
+          });
+          generatedThumbUrl = thumbUrl;
+        } catch (err) {
+          console.error('Erro ao gerar thumbnail -thumb.webp do Blob:', err);
+        }
+      }
+      // Salvar para uso no thumbnail
+  processedImages = [{ imageUrl: firstImageBlock?.src || '', thumbnailUrl: generatedThumbUrl || '' }];
     }
 
     const slugBase = slugify(title, {
@@ -110,27 +144,29 @@ export class PostService {
     // Thumbnail logic
     let finalThumbnail: string | null = null;
     if (thumbnailSrc) {
-      // In legacy flow, a "new-image-{i}" marker indicates the chosen file index
+      // Em ambos os fluxos, thumbnailSrc pode ser "new-image-{i}" (legacy) ou uma URL (client-upload)
       const thumbBlockIndex = data.blocks.findIndex((b, i) => thumbnailSrc === 'new-image-' + i);
       if (thumbBlockIndex !== -1 && processedImages[thumbBlockIndex]) {
         finalThumbnail = processedImages[thumbBlockIndex].thumbnailUrl;
       } else {
-        // In client-upload flow, thumbnailSrc can be a URL from an existing block
+        // thumbnailSrc é uma URL de imagem já no Blob
         const existingBlock = finalBlocks.find((b: any) => b?.type === 'image' && b?.src && b.src === thumbnailSrc);
         if (existingBlock && typeof existingBlock.src === 'string') {
-          finalThumbnail = generateThumbnailUrl(existingBlock.src);
+          // Tenta achar o thumb gerado
+          const thumb = processedImages.find(img => img.imageUrl === existingBlock.src)?.thumbnailUrl;
+          finalThumbnail = thumb || generateThumbnailUrl(existingBlock.src);
         }
       }
     }
     // Fallbacks
     if (!finalThumbnail) {
-      if (processedImages.length > 0) {
+      if (processedImages.length > 0 && processedImages[0].thumbnailUrl) {
         finalThumbnail = processedImages[0].thumbnailUrl;
       } else {
-        // Client-upload flow: derive from first image block url
+        // Se não conseguiu gerar thumb, usa a imagem original
         const firstImage = finalBlocks.find((b: any) => b?.type === 'image' && b?.src);
         if (firstImage) {
-          finalThumbnail = generateThumbnailUrl(firstImage.src);
+          finalThumbnail = firstImage.src;
         }
       }
     }
