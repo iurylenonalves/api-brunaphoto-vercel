@@ -60,9 +60,19 @@ async function processAndUploadImage(file: Express.Multer.File): Promise<{ image
 }
 
 export class PostService {
-  async create(data: { title: string; subtitle: string; locale: string; blocks: any[]; publishedAt?: string; files: Express.Multer.File[]; thumbnailSrc?: string; relatedSlug?: string }) {
+  async create(data: { 
+    title: string; 
+    subtitle: string; 
+    locale: string; 
+    blocks: any[]; 
+    publishedAt?: string; 
+    files: Express.Multer.File[]; 
+    thumbnailSrc?: string; 
+    relatedSlug?: string; 
+    thumbnailAlt?: string;
+  }) {
     console.log("[Service] PostService.create called with title:", data.title);
-    const { title, subtitle, locale, blocks, publishedAt, files, thumbnailSrc, relatedSlug } = data;
+    const { title, subtitle, locale, blocks, publishedAt, files, thumbnailSrc, relatedSlug, thumbnailAlt } = data;
 
     // Two flows: legacy multipart (files present) vs client-upload (blocks contain blob URLs)
     let processedImages: { imageUrl: string; thumbnailUrl: string }[] = [];
@@ -177,7 +187,8 @@ export class PostService {
       subtitle,
       locale,
       thumbnail: finalThumbnail,
-  blocks: finalBlocks,
+      thumbnailAlt,
+      blocks: finalBlocks,
       publishedAt: publishedAt ? new Date(publishedAt) : null,
       relatedSlug,
     };
@@ -196,6 +207,7 @@ export class PostService {
         title: true,
         subtitle: true,
         thumbnail: true,
+        thumbnailAlt: true,
         createdAt: true,
         publishedAt: true,
         locale: true,
@@ -241,11 +253,12 @@ export class PostService {
     files?: Express.Multer.File[];
     thumbnailSrc?: string;
     relatedSlug?: string;
+    thumbnailAlt?: string;
   }) {
     const existingPost = await prisma.post.findUnique({ where: { slug_locale: { slug, locale } } });
     if (!existingPost) throw new HttpError(404, "Post not found.");
 
-    const { title, subtitle, blocks, publishedAt, files = [], thumbnailSrc, relatedSlug } = data;
+    const { title, subtitle, blocks, publishedAt, files = [], thumbnailSrc, relatedSlug, thumbnailAlt } = data;
 
     // Process only the new images (legacy flow); client-upload flow sends ready URLs in blocks
     let processedImages: { imageUrl: string; thumbnailUrl: string }[] = [];
@@ -266,16 +279,16 @@ export class PostService {
     });
 
     let newImageIndex = 0;
-  const finalBlocks = blocks.map((block, index) => {
+    const finalBlocks = blocks.map((block, index) => {
       if (block.type === 'image') {
         if (placeholderPositions.includes(index) && processedImages[newImageIndex]) {
           const result = { ...block, src: processedImages[newImageIndex].imageUrl };
-          newImageIndex++;
-          return result;
-        }
-    if (block.src && block.src !== 'image-placeholder') {
-          return block;
-        }
+            newImageIndex++;
+            return result;
+          }
+        if (block.src && block.src !== 'image-placeholder') {
+            return block;
+          }
         // Try to recover from the existing post if there is no new image for this block
         const existingBlock = (existingPost.blocks as any[])[index];
         if (existingBlock?.src) {
@@ -292,6 +305,7 @@ export class PostService {
       blocks: finalBlocks,
       publishedAt: publishedAt ? new Date(publishedAt) : existingPost.publishedAt,
       relatedSlug,
+      thumbnailAlt,
     };
 
     // Thumbnail logic during update

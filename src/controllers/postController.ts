@@ -52,10 +52,10 @@ export class PostController {
   create: Handler = async (req: Request, res: Response, next: NextFunction) => {
     console.log("\n--- [POST /api/posts] Received Request ---");
     try {
-  const { title, subtitle, locale, blocks, publishedAt, thumbnailSrc, relatedSlug } = req.body;
-  const imageFiles = (req.files as Express.Multer.File[]) || [];
-  console.log("[Controller] Received data:", { title, subtitle, locale, publishedAt });
-  console.log(`[Controller] Received ${imageFiles?.length || 0} files.`);
+      const { title, subtitle, locale, blocks, publishedAt, thumbnailSrc, relatedSlug, thumbnailAlt } = req.body;
+      const imageFiles = (req.files as Express.Multer.File[]) || [];
+      console.log("[Controller] Received data:", { title, subtitle, locale, publishedAt });
+      console.log(`[Controller] Received ${imageFiles?.length || 0} files.`);
 
       if (!title || !subtitle || !locale || !blocks) {
         console.error("[Controller] Validation failed: Missing required fields.");
@@ -103,6 +103,7 @@ export class PostController {
         files: imageFiles,
         thumbnailSrc: thumbnailSrc,
         relatedSlug: relatedSlug,
+        thumbnailAlt: thumbnailAlt,
       });
       console.log("[Controller] PostService.create finished successfully. Post ID:", newPost.id);
 
@@ -120,14 +121,14 @@ export class PostController {
     console.log("\n--- [PUT /api/posts/:slug] Received Update Request ---");
     try {
       const { slug } = req.params;
-      const { locale, title, subtitle, blocks, publishedAt, thumbnailSrc, relatedSlug } = req.body;
-  const imageFiles = (req.files as Express.Multer.File[]) || [];
+      const { locale, title, subtitle, blocks, publishedAt, thumbnailSrc, relatedSlug, thumbnailAlt } = req.body;
+      const imageFiles = (req.files as Express.Multer.File[]) || [];
       
       console.log("[Controller] Update request for slug:", slug);
       console.log("[Controller] Received data:", { title, subtitle, locale, publishedAt });
       console.log(`[Controller] Received ${imageFiles?.length || 0} new files.`);
   
-  if (!title || !subtitle || !locale || !blocks) {
+      if (!title || !subtitle || !locale || !blocks) {
         console.error("[Controller] Validation failed: Missing required fields.");
         res.status(400).json({ error: "Title, subtitle, locale, and blocks are required." });
         return;
@@ -152,7 +153,7 @@ export class PostController {
       }
       
       console.log("[Controller] Calling PostService.update...");
-  const updatedPost = await this.postService.update(slug, locale, {
+      const updatedPost = await this.postService.update(slug, locale, {
         title,
         subtitle,
         blocks: parsedBlocks,
@@ -160,6 +161,7 @@ export class PostController {
         files: imageFiles,
         thumbnailSrc: thumbnailSrc,
         relatedSlug: relatedSlug,
+        thumbnailAlt: thumbnailAlt,
       });
       
       console.log("[Controller] PostService.update finished successfully. Post ID:", updatedPost.id);
@@ -176,7 +178,7 @@ export class PostController {
     }
   };
 
-   delete: Handler = async (req: Request, res: Response, next: NextFunction) => {
+  delete: Handler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { slug } = req.params;
       const { locale } = req.query;
