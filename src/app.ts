@@ -49,7 +49,7 @@ app.use('/api', routes);
 app.use((req, res) => {
   res.status(404).json({
     error: 'Endpoint not found',
-    message: 'Check the URL or consult the API documentation.'
+    message: `The requested endpoint ${req.method} ${req.path} does not exist.`
   });
 });
 

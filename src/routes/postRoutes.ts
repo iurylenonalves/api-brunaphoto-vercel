@@ -2,7 +2,7 @@ import { Router } from "express";
 import { PostController } from "../controllers/postController";
 import { PostService } from "../services/PostService";
 import { requireAuth } from "../middlewares/auth";
-import { upload } from "../middlewares/multer";
+//import { upload } from "../middlewares/multer";
 
 const router = Router();
 
@@ -13,9 +13,9 @@ router.get("/", postController.getPosts);
 router.get("/related", postController.getRelatedPost);
 router.get("/:slug", postController.getPostBySlug);
 
-router.post("/", requireAuth, upload.array("images"), postController.create);
+router.post("/", requireAuth, postController.create);
 
-router.put("/:slug", requireAuth, upload.array("images"), postController.update);
+router.put("/:slug", requireAuth, postController.update);
 router.delete("/:slug", requireAuth, postController.delete);
 
 export default router;

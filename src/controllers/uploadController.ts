@@ -1,7 +1,15 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { verifyJWT } from "../utils/jwt";
+import { PostService, ProcessedImageResult } from "../services/PostService";
+import { HttpError } from "../errors/HttpError";
 
+/**
+  * This method has been replaced by the upload flow via /api/uploads/image.
+  * Temporarily kept during the transition.
+  * 
+  * Generates a token for the client to upload directly to Vercel Blob.
+  */
 export class UploadController {
   // Generates a short-lived client token for direct-to-Blob uploads
   // and receives the upload completion webhook from Vercel Blob.
@@ -40,7 +48,7 @@ export class UploadController {
             tokenPayload: JSON.stringify({ userId: decoded.userId }),
           };
         },
-  onUploadCompleted: async ({ blob, tokenPayload }) => {
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
           try {
             console.log("[Blob] Upload completed:", {
               url: blob?.url,
@@ -56,6 +64,32 @@ export class UploadController {
       return res.status(200).json(jsonResponse);
     } catch (error) {
       return res.status(400).json({ error: (error as Error).message || "Upload signing failed" });
+    }
+  };
+
+
+  /**
+   * NEW CENTRALIZED METHOD:
+   * Receives an image file, processes it using PostService,
+   * and returns the optimized image URL and its data.
+   */
+  processAndStoreImage = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.file) {
+        throw new HttpError(400, "No image file provided.");
+      }
+
+      // Usamos uma instância do PostService para acessar nosso novo método
+      const postService = new PostService();
+      const result: ProcessedImageResult = await postService.processAndUploadSingleImage(req.file);
+      
+      // Retorna os dados da imagem processada para o frontend
+      console.log("[UploadController] Image processed successfully:", result.imageUrl);
+      res.status(200).json(result);
+
+    } catch (error) {
+      // Passa o erro para o middleware de tratamento de erros
+      next(error);
     }
   };
 }

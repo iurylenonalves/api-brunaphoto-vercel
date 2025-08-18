@@ -1,5 +1,4 @@
-import { Handler } from "express";
-import { Request, Response, NextFunction } from "express";
+import { Handler, Request, Response, NextFunction } from "express";
 import { PostService } from "../services/PostService";
 
 export class PostController {
@@ -50,60 +49,26 @@ export class PostController {
   };
 
   create: Handler = async (req: Request, res: Response, next: NextFunction) => {
-    console.log("\n--- [POST /api/posts] Received Request ---");
+    console.log("\n--- [POST /api/posts] Received Request (New JSON Flow) ---");
     try {
-      const { title, subtitle, locale, blocks, publishedAt, thumbnailSrc, relatedSlug, thumbnailAlt } = req.body;
-      const imageFiles = (req.files as Express.Multer.File[]) || [];
-      console.log("[Controller] Received data:", { title, subtitle, locale, publishedAt });
-      console.log(`[Controller] Received ${imageFiles?.length || 0} files.`);
+      const { title, subtitle, locale, blocks, publishedAt, thumbnailSrc, relatedSlug, thumbnailAlt } = req.body;      
 
       if (!title || !subtitle || !locale || !blocks) {
         console.error("[Controller] Validation failed: Missing required fields.");
         res.status(400).json({ error: "Title, subtitle, locale, and blocks are required." });
         return;
       }
-
-      // If using old flow (multipart + multer), we require files.
-      // If using new flow (client -> Blob), image URLs must already be in blocks.
-      if (!imageFiles || imageFiles.length === 0) {
-        const candidateBlocks = typeof blocks === 'string' ? (() => { try { return JSON.parse(blocks); } catch { return null; } })() : blocks;
-        const hasImage = Array.isArray(candidateBlocks) && candidateBlocks.some((b: any) => b?.type === 'image' && b?.src);
-        if (!hasImage) {
-          console.error("[Controller] Validation failed: No images provided in blocks.");
-          res.status(400).json({ error: "At least one image is required (provide Blob URLs in blocks)." });
-          return;
-        }
-      }
-      
-      let parsedBlocks: any[];
-      if (typeof blocks === 'string') {
-        try {
-          console.log("[Controller] Parsing 'blocks' JSON string...");
-          parsedBlocks = JSON.parse(blocks);
-          console.log("[Controller] 'blocks' parsed successfully.");
-        } catch (e) {
-          console.error("[Controller] Failed to parse 'blocks' JSON:", blocks, e);
-          res.status(400).json({ error: "Invalid format for 'blocks'." });
-          return;
-        }
-      } else if (Array.isArray(blocks)) {
-        parsedBlocks = blocks as any[];
-      } else {
-        res.status(400).json({ error: "Invalid 'blocks' payload." });
-        return;
-      }
-      
+          
       console.log("[Controller] Calling PostService.create...");
       const newPost = await this.postService.create({
         title,
         subtitle,
         locale,
-        blocks: parsedBlocks,
+        blocks,
         publishedAt,
-        files: imageFiles,
-        thumbnailSrc: thumbnailSrc,
-        relatedSlug: relatedSlug,
-        thumbnailAlt: thumbnailAlt,
+        thumbnailSrc,
+        relatedSlug,
+        thumbnailAlt,
       });
       console.log("[Controller] PostService.create finished successfully. Post ID:", newPost.id);
 
@@ -118,50 +83,29 @@ export class PostController {
   };
 
   update: Handler = async (req: Request, res: Response, next: NextFunction) => {
-    console.log("\n--- [PUT /api/posts/:slug] Received Update Request ---");
+    console.log("\n--- [PUT /api/posts/:slug] Received Update Request (New JSON Flow) ---");
     try {
       const { slug } = req.params;
       const { locale, title, subtitle, blocks, publishedAt, thumbnailSrc, relatedSlug, thumbnailAlt } = req.body;
-      const imageFiles = (req.files as Express.Multer.File[]) || [];
-      
+            
       console.log("[Controller] Update request for slug:", slug);
-      console.log("[Controller] Received data:", { title, subtitle, locale, publishedAt });
-      console.log(`[Controller] Received ${imageFiles?.length || 0} new files.`);
+      console.log("[Controller] Received data:", { title, subtitle, locale, publishedAt });      
   
       if (!title || !subtitle || !locale || !blocks) {
         console.error("[Controller] Validation failed: Missing required fields.");
         res.status(400).json({ error: "Title, subtitle, locale, and blocks are required." });
         return;
       }
-      
-      let parsedBlocks: any[];
-      if (typeof blocks === 'string') {
-        try {
-          console.log("[Controller] Parsing 'blocks' JSON string...");
-          parsedBlocks = JSON.parse(blocks);
-          console.log("[Controller] 'blocks' parsed successfully.");
-        } catch (e) {
-          console.error("[Controller] Failed to parse 'blocks' JSON:", blocks, e);
-          res.status(400).json({ error: "Invalid format for 'blocks'." });
-          return;
-        }
-      } else if (Array.isArray(blocks)) {
-        parsedBlocks = blocks as any[];
-      } else {
-        res.status(400).json({ error: "Invalid 'blocks' payload." });
-        return;
-      }
-      
+
       console.log("[Controller] Calling PostService.update...");
       const updatedPost = await this.postService.update(slug, locale, {
         title,
         subtitle,
-        blocks: parsedBlocks,
-        publishedAt,
-        files: imageFiles,
-        thumbnailSrc: thumbnailSrc,
-        relatedSlug: relatedSlug,
-        thumbnailAlt: thumbnailAlt,
+        blocks,
+        publishedAt,        
+        thumbnailSrc,
+        relatedSlug,
+        thumbnailAlt,
       });
       
       console.log("[Controller] PostService.update finished successfully. Post ID:", updatedPost.id);

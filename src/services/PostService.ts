@@ -5,16 +5,26 @@ import sharp from 'sharp';
 import { put } from "@vercel/blob";
 import { del } from "@vercel/blob";
 
+// New interface for processed image results
+export interface ProcessedImageResult {
+  imageUrl: string;
+  thumbnailUrl: string;
+  width: number;
+  height: number;
+}
+
 // Helper function to generate thumbnail URL from main image URL
 function generateThumbnailUrl(imageUrl: string): string {
-  if (imageUrl.includes('-thumb.webp')) {
-    return imageUrl; // Já é um thumbnail
-  }
+  if (!imageUrl) return "";
+  // Garante que não duplique o sufixo -thumb
+  if (imageUrl.includes('-thumb.webp')) return imageUrl;
   return imageUrl.replace('.webp', '-thumb.webp');
 }
 
+export class PostService {
+
 // Helper function to process and upload an image
-async function processAndUploadImage(file: Express.Multer.File): Promise<{ imageUrl: string; thumbnailUrl: string }> {
+async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedImageResult> {
   // Remove a extensão original e cria um nome base
   const originalName = file.originalname;
   const nameWithoutExt = originalName.replace(/\.[^/.]+$/, ""); // Remove a extensão
@@ -25,6 +35,14 @@ async function processAndUploadImage(file: Express.Multer.File): Promise<{ image
   const thumbnailPath = `${fileName}-thumb.webp`;
 
   try {
+    const imageSharp = sharp(file.buffer);
+
+    // Obtenha os metadados (incluindo dimensões) da imagem original
+    const metadata = await imageSharp.metadata();
+    // Usamos as dimensões da imagem original para manter a proporção correta
+    const width = metadata.width || 0;
+    const height = metadata.height || 0;
+    
     // Process the main image from the buffer (resize and convert to webp)
     const imageBuffer = await sharp(file.buffer)
       .resize({ width: 1920, fit: 'inside', withoutEnlargement: true })
@@ -51,7 +69,9 @@ async function processAndUploadImage(file: Express.Multer.File): Promise<{ image
 
     return { 
       imageUrl: imageBlob.url, 
-      thumbnailUrl: thumbnailBlob.url
+      thumbnailUrl: thumbnailBlob.url,
+      width,
+      height,
     };
   } catch (error) {
     console.error('Erro ao processar e fazer upload da imagem:', error);
@@ -59,81 +79,24 @@ async function processAndUploadImage(file: Express.Multer.File): Promise<{ image
   }
 }
 
-export class PostService {
+
   async create(data: { 
     title: string; 
     subtitle: string; 
     locale: string; 
     blocks: any[]; 
-    publishedAt?: string; 
-    files: Express.Multer.File[]; 
+    publishedAt?: string;    
     thumbnailSrc?: string; 
     relatedSlug?: string; 
     thumbnailAlt?: string;
   }) {
     console.log("[Service] PostService.create called with title:", data.title);
-    const { title, subtitle, locale, blocks, publishedAt, files, thumbnailSrc, relatedSlug, thumbnailAlt } = data;
+    const { title, subtitle, locale, blocks, publishedAt, thumbnailSrc, relatedSlug, thumbnailAlt } = data;
 
-    // Two flows: legacy multipart (files present) vs client-upload (blocks contain blob URLs)
-    let processedImages: { imageUrl: string; thumbnailUrl: string }[] = [];
-    let finalBlocks = data.blocks;
-
-    if (files && files.length > 0) {
-      try {
-        processedImages = await Promise.all(files.map(file => processAndUploadImage(file)));
-      } catch (error) {
-        console.error('Erro ao processar imagens no create:', error);
-        throw new HttpError(500, 'Falha ao processar as imagens');
-      }
-
-      let imageIndex = 0;
-      finalBlocks = data.blocks.map(block => {
-        if (block.type === 'image' && processedImages[imageIndex]) {
-          const currentImage = processedImages[imageIndex];
-          imageIndex++;
-          return { ...block, src: currentImage.imageUrl };
-        }
-        return block;
-      });
-    } else {
-      // Client-upload flow: ensure images have src URLs
-      const hasImageUrl = Array.isArray(data.blocks) && data.blocks.some((b: any) => b?.type === 'image' && typeof b?.src === 'string' && b.src);
-      if (!hasImageUrl) {
-        throw new HttpError(400, 'At least one image URL is required in blocks.');
-      }
-
-      // Geração do thumbnail -thumb.webp para o primeiro bloco de imagem
-      const firstImageBlock = data.blocks.find((b: any) => b?.type === 'image' && typeof b?.src === 'string' && b.src);
-      let generatedThumbUrl: string | null = null;
-      if (firstImageBlock && firstImageBlock.src) {
-        try {
-          // Baixar a imagem original do Blob
-          const response = await fetch(firstImageBlock.src);
-          if (!response.ok) throw new Error('Falha ao baixar imagem do Blob');
-          const buffer = Buffer.from(await response.arrayBuffer());
-          // Gerar thumbnail com sharp
-          const thumbBuffer = await sharp(buffer)
-            .resize({ width: 500, fit: 'inside' })
-            .webp({ quality: 85 })
-            .toBuffer();
-          // Montar path do thumb
-          const urlObj = new URL(firstImageBlock.src);
-          const pathParts = urlObj.pathname.split("/");
-          const fileName = pathParts[pathParts.length - 1];
-          const baseName = fileName.replace(/\.webp$/, "");
-          const thumbPath = `posts/${baseName}-thumb.webp`;
-          // Subir para o Blob
-          const { url: thumbUrl } = await put(thumbPath, thumbBuffer, {
-            access: 'public',
-            contentType: 'image/webp',
-          });
-          generatedThumbUrl = thumbUrl;
-        } catch (err) {
-          console.error('Erro ao gerar thumbnail -thumb.webp do Blob:', err);
-        }
-      }
-      // Salvar para uso no thumbnail
-  processedImages = [{ imageUrl: firstImageBlock?.src || '', thumbnailUrl: generatedThumbUrl || '' }];
+    // Validação básica
+    const hasImage = blocks.some(b => b.type === 'image' && b.src);
+    if (!hasImage) {
+      throw new HttpError(400, "Pelo menos um bloco de imagem com URL é necessário.");
     }
 
     const slugBase = slugify(title, {
@@ -154,30 +117,14 @@ export class PostService {
     // Thumbnail logic
     let finalThumbnail: string | null = null;
     if (thumbnailSrc) {
-      // Em ambos os fluxos, thumbnailSrc pode ser "new-image-{i}" (legacy) ou uma URL (client-upload)
-      const thumbBlockIndex = data.blocks.findIndex((b, i) => thumbnailSrc === 'new-image-' + i);
-      if (thumbBlockIndex !== -1 && processedImages[thumbBlockIndex]) {
-        finalThumbnail = processedImages[thumbBlockIndex].thumbnailUrl;
-      } else {
-        // thumbnailSrc é uma URL de imagem já no Blob
-        const existingBlock = finalBlocks.find((b: any) => b?.type === 'image' && b?.src && b.src === thumbnailSrc);
-        if (existingBlock && typeof existingBlock.src === 'string') {
-          // Tenta achar o thumb gerado
-          const thumb = processedImages.find(img => img.imageUrl === existingBlock.src)?.thumbnailUrl;
-          finalThumbnail = thumb || generateThumbnailUrl(existingBlock.src);
-        }
-      }
-    }
-    // Fallbacks
-    if (!finalThumbnail) {
-      if (processedImages.length > 0 && processedImages[0].thumbnailUrl) {
-        finalThumbnail = processedImages[0].thumbnailUrl;
-      } else {
-        // Se não conseguiu gerar thumb, usa a imagem original
-        const firstImage = finalBlocks.find((b: any) => b?.type === 'image' && b?.src);
-        if (firstImage) {
-          finalThumbnail = firstImage.src;
-        }
+      // thumbnailSrc agora é sempre uma URL de imagem principal.
+      // Nós geramos a URL do thumbnail a partir dela.
+      finalThumbnail = generateThumbnailUrl(thumbnailSrc);
+    } else {
+      // Se nenhuma thumbnail foi escolhida, pega a primeira imagem do post.
+      const firstImageBlock = blocks.find(b => b.type === 'image');
+      if (firstImageBlock?.src) {
+        finalThumbnail = generateThumbnailUrl(firstImageBlock.src);
       }
     }
 
@@ -188,7 +135,7 @@ export class PostService {
       locale,
       thumbnail: finalThumbnail,
       thumbnailAlt,
-      blocks: finalBlocks,
+      blocks,
       publishedAt: publishedAt ? new Date(publishedAt) : null,
       relatedSlug,
     };
@@ -249,8 +196,7 @@ export class PostService {
     title: string; 
     subtitle: string; 
     blocks: any[];
-    publishedAt?: string;
-    files?: Express.Multer.File[];
+    publishedAt?: string;    
     thumbnailSrc?: string;
     relatedSlug?: string;
     thumbnailAlt?: string;
@@ -258,51 +204,12 @@ export class PostService {
     const existingPost = await prisma.post.findUnique({ where: { slug_locale: { slug, locale } } });
     if (!existingPost) throw new HttpError(404, "Post not found.");
 
-    const { title, subtitle, blocks, publishedAt, files = [], thumbnailSrc, relatedSlug, thumbnailAlt } = data;
-
-    // Process only the new images (legacy flow); client-upload flow sends ready URLs in blocks
-    let processedImages: { imageUrl: string; thumbnailUrl: string }[] = [];
-    if (files && files.length > 0) {
-      try {
-        processedImages = await Promise.all(files.map(file => processAndUploadImage(file)));
-      } catch (error) {
-        console.error('Erro ao processar novas imagens no update:', error);
-        throw new HttpError(500, 'Falha ao processar as novas imagens');
-      }
-    }
-    
-    const placeholderPositions: number[] = [];
-    blocks.forEach((block, index) => {
-      if (block.type === 'image' && block.src === 'image-placeholder') {
-        placeholderPositions.push(index);
-      }
-    });
-
-    let newImageIndex = 0;
-    const finalBlocks = blocks.map((block, index) => {
-      if (block.type === 'image') {
-        if (placeholderPositions.includes(index) && processedImages[newImageIndex]) {
-          const result = { ...block, src: processedImages[newImageIndex].imageUrl };
-            newImageIndex++;
-            return result;
-          }
-        if (block.src && block.src !== 'image-placeholder') {
-            return block;
-          }
-        // Try to recover from the existing post if there is no new image for this block
-        const existingBlock = (existingPost.blocks as any[])[index];
-        if (existingBlock?.src) {
-          return { ...block, src: existingBlock.src };
-        }
-        return { ...block, src: null };
-      }
-      return block;
-    });
+    const { title, subtitle, blocks, publishedAt, thumbnailSrc, relatedSlug, thumbnailAlt } = data;    
 
     const updateData: any = {
       title,
       subtitle,
-      blocks: finalBlocks,
+      blocks,
       publishedAt: publishedAt ? new Date(publishedAt) : existingPost.publishedAt,
       relatedSlug,
       thumbnailAlt,
@@ -310,25 +217,14 @@ export class PostService {
 
     // Thumbnail logic during update
   if (thumbnailSrc) {
-      // If the chosen thumbnail is a new image
-      const newImageBlockIndex = blocks.findIndex((b, i) => thumbnailSrc === 'new-image-' + i);
-      // Map the block index to the processed images array index
-      const processedImageIndex = placeholderPositions.indexOf(newImageBlockIndex);
-
-      if (processedImageIndex !== -1 && processedImages[processedImageIndex]) {
-        updateData.thumbnail = processedImages[processedImageIndex].thumbnailUrl;
-      } else {
-        // If the chosen thumbnail is an existing image, the `thumbnailSrc` will be its path.
-        // We need to find the corresponding block to ensure the thumbnail is the -thumb.webp version
-        const existingBlock = finalBlocks.find(b => b.src === thumbnailSrc);
-        if (existingBlock && typeof existingBlock.src === 'string') {
-          // Generate the thumbnail path from the main image path
-          updateData.thumbnail = generateThumbnailUrl(existingBlock.src);
-        }
+      updateData.thumbnail = generateThumbnailUrl(thumbnailSrc);
+    } else if (!existingPost.thumbnail) {
+      // Se não havia thumbnail antes e agora também não foi escolhida,
+      // tenta definir a partir da primeira imagem dos blocos atualizados.
+      const firstImageBlock = blocks.find(b => b.type === 'image');
+      if (firstImageBlock?.src) {
+        updateData.thumbnail = generateThumbnailUrl(firstImageBlock.src);
       }
-    } else if (processedImages.length > 0 && !existingPost.thumbnail) {
-      // If no thumbnail was previously set and new images were added, set the first new one as the thumbnail
-      updateData.thumbnail = processedImages[0].thumbnailUrl;
     }
 
     return prisma.post.update({
@@ -347,39 +243,35 @@ export class PostService {
     }
 
     // Coleta todas as URLs de imagem do post
-    const imageUrls: string[] = [];
+    const imageUrlsToDelete: string[] = [];
       if (postExists.thumbnail) {
-        imageUrls.push(postExists.thumbnail as string);
+        imageUrlsToDelete.push(postExists.thumbnail as string);
       }
 
       // Coleta URLs de imagens dos blocos
       (postExists.blocks as any[]).forEach(block => {
         if (block.type === 'image' && block.src) {
-          imageUrls.push(block.src);
+          imageUrlsToDelete.push(block.src);
 
-          // Se não for um thumbnail, adiciona o thumbnail correspondente
-          if (!block.src.includes('-thumb.webp')) {
-            const thumbnailUrl = generateThumbnailUrl(block.src);
-            imageUrls.push(thumbnailUrl);
-          }
+          // Adiciona a URL do thumbnail correspondente para deleção também
+          imageUrlsToDelete.push(generateThumbnailUrl(block.src));
         }
      });
 
      // Log para debug - adicione isso temporariamente
-     console.log('URLs coletadas para deleção:', imageUrls);
+     console.log('URLs coletadas para deleção:', imageUrlsToDelete);   
    
-     // Filtra apenas URLs do Vercel Blob antes de deletar
-     const vercelBlobUrls = imageUrls.filter(url => 
-       url.includes('vercel-storage.com') || url.includes('blob.vercel-storage.com')
-     );
+     // Remove duplicatas e filtra apenas URLs do Vercel Blob
+    const uniqueVercelBlobUrls = [...new Set(imageUrlsToDelete)]
+      .filter(url => url.includes('blob.vercel-storage.com'));
 
-     console.log('URLs do Vercel Blob para deletar:', vercelBlobUrls);
-     
+     console.log('URLs do Vercel Blob para deletar:', uniqueVercelBlobUrls);
+
      // Deleta apenas as imagens do Vercel Blob
-     if (vercelBlobUrls.length > 0) {
+     if (uniqueVercelBlobUrls.length > 0) {
        try {
-         await del(vercelBlobUrls);
-         console.log(`Deletadas ${vercelBlobUrls.length} imagens do Vercel Blob`);
+         await del(uniqueVercelBlobUrls);
+         console.log(`Deletadas ${uniqueVercelBlobUrls.length} imagens do Vercel Blob`);
        } catch (error) {
          console.error('Erro ao deletar imagens do Vercel Blob:', error);
          // Continue com a deleção do post mesmo se falhar ao deletar as imagens
