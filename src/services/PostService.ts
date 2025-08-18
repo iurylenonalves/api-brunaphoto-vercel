@@ -46,7 +46,7 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
     // Process the main image from the buffer (resize and convert to webp)
     const imageBuffer = await sharp(file.buffer)
       .resize({ width: 1920, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 80 })
+      .webp({ quality: 75 })
       .toBuffer();
     
     // Save the main image to Vercel Blob storage
