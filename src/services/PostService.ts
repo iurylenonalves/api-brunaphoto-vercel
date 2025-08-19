@@ -192,7 +192,10 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
         where: {
           locale,          
           publishedAt: {
-            lt: currentPost.publishedAt,
+            lte: currentPost.publishedAt,
+          },
+          id:{
+            not: currentPost.id
           },
         },
         orderBy: [
@@ -210,7 +213,10 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
         where: {
           locale,          
           publishedAt: {
-            gt: currentPost.publishedAt,
+            gte: currentPost.publishedAt,
+          },
+          id:{
+            not: currentPost.id
           },
         },
         orderBy: [
