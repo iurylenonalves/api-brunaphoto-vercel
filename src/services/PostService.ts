@@ -191,42 +191,38 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
       prisma.post.findFirst({
         where: {
           locale,          
-          publishedAt: {
-            lte: currentPost.publishedAt,
-          },
-          id:{
-            not: currentPost.id
-          },
+          OR: [            
+            { publishedAt: { lt: currentPost.publishedAt } },
+            {
+              publishedAt: currentPost.publishedAt,
+              createdAt: { lt: currentPost.createdAt }
+            }
+          ]
         },
         orderBy: [
           { publishedAt: 'desc' },
           { createdAt: 'desc' },
         ],
-        select: {
-          title: true,
-          slug: true,
-        },
+        select: { title: true, slug: true },
       }),
 
       // Next post
       prisma.post.findFirst({
         where: {
           locale,          
-          publishedAt: {
-            gte: currentPost.publishedAt,
-          },
-          id:{
-            not: currentPost.id
-          },
+          OR: [
+            { publishedAt: { gt: currentPost.publishedAt } },
+            {
+              publishedAt: currentPost.publishedAt,
+              createdAt: { gt: currentPost.createdAt }
+            }
+          ]
         },
         orderBy: [
           { publishedAt: 'asc' },
           { createdAt: 'asc' },
         ],
-        select: {
-          title: true,
-          slug: true,
-        },
+        select: { title: true, slug: true },
       }),
     ]);
     
