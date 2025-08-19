@@ -195,9 +195,10 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
             lt: currentPost.publishedAt,
           },
         },
-        orderBy: {
-          publishedAt: 'desc',
-        },
+        orderBy: [
+          { publishedAt: 'desc' },
+          { createdAt: 'desc' },
+        ],
         select: {
           title: true,
           slug: true,
@@ -212,9 +213,10 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
             gt: currentPost.publishedAt,
           },
         },
-        orderBy: {
-          publishedAt: 'asc',
-        },
+        orderBy: [
+          { publishedAt: 'asc' },
+          { createdAt: 'asc' },
+        ],
         select: {
           title: true,
           slug: true,
