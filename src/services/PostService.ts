@@ -16,7 +16,7 @@ export interface ProcessedImageResult {
 // Helper function to generate thumbnail URL from main image URL
 function generateThumbnailUrl(imageUrl: string): string {
   if (!imageUrl) return "";
-  // Garante que não duplique o sufixo -thumb
+  // Ensure the -thumb suffix is not duplicated
   if (imageUrl.includes('-thumb.webp')) return imageUrl;
   return imageUrl.replace('.webp', '-thumb.webp');
 }
@@ -25,7 +25,7 @@ export class PostService {
 
 // Helper function to process and upload an image
 async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedImageResult> {
-  // Remove a extensão original e cria um nome base
+  // Remove the original extension and create a base name
   const originalName = file.originalname;
   const nameWithoutExt = originalName.replace(/\.[^/.]+$/, ""); // Remove a extensão
   const fileName = `posts/${Date.now()}-${slugify(nameWithoutExt, { lower: true })}`;
@@ -37,9 +37,9 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
   try {
     const imageSharp = sharp(file.buffer);
 
-    // Obtenha os metadados (incluindo dimensões) da imagem original
+    // Get the metadata (including dimensions) from the original image
     const metadata = await imageSharp.metadata();
-    // Usamos as dimensões da imagem original para manter a proporção correta
+    // We use the original image dimensions to maintain the correct aspect ratio
     const width = metadata.width || 0;
     const height = metadata.height || 0;
     
@@ -166,18 +166,70 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
   }
 
   async findBySlug(slug: string, locale: string) {
-    const post = await prisma.post.findUnique({
+    const currentPost = await prisma.post.findUnique({
       where: {
-        slug_locale: {
-          slug,
-          locale,
-        },
+        slug_locale: { slug, locale },
       },
     });
-    if (!post) {
+    
+    if (!currentPost) {
       throw new HttpError(404, "Post not found.");
-    }
-    return post;
+    }    
+    
+    if (!currentPost.publishedAt) {
+      return {
+        post: currentPost,
+        navigation: {
+          previous: null,
+          next: null,
+        }
+      };
+    }    
+    
+    const [previousPost, nextPost] = await Promise.all([ 
+      // Previous post     
+      prisma.post.findFirst({
+        where: {
+          locale,          
+          publishedAt: {
+            lt: currentPost.publishedAt,
+          },
+        },
+        orderBy: {
+          publishedAt: 'desc',
+        },
+        select: {
+          title: true,
+          slug: true,
+        },
+      }),
+
+      // Next post
+      prisma.post.findFirst({
+        where: {
+          locale,          
+          publishedAt: {
+            gt: currentPost.publishedAt,
+          },
+        },
+        orderBy: {
+          publishedAt: 'asc',
+        },
+        select: {
+          title: true,
+          slug: true,
+        },
+      }),
+    ]);
+    
+    // Return the post along with navigation links
+    return {
+      post: currentPost,
+      navigation: {
+        previous: previousPost,
+        next: nextPost,
+      }
+    };
   }
 
   async findByRelatedSlug(relatedSlug: string, locale: string) {
@@ -219,8 +271,8 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
   if (thumbnailSrc) {
       updateData.thumbnail = generateThumbnailUrl(thumbnailSrc);
     } else if (!existingPost.thumbnail) {
-      // Se não havia thumbnail antes e agora também não foi escolhida,
-      // tenta definir a partir da primeira imagem dos blocos atualizados.
+      // If there was no thumbnail before and none was chosen now,
+      // try to set it from the first image in the updated blocks.
       const firstImageBlock = blocks.find(b => b.type === 'image');
       if (firstImageBlock?.src) {
         updateData.thumbnail = generateThumbnailUrl(firstImageBlock.src);
@@ -242,39 +294,38 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
       throw new HttpError(404, "Post to delete not found.");
     }
 
-    // Coleta todas as URLs de imagem do post
+    // Collect all image URLs from the post
     const imageUrlsToDelete: string[] = [];
       if (postExists.thumbnail) {
         imageUrlsToDelete.push(postExists.thumbnail as string);
       }
 
-      // Coleta URLs de imagens dos blocos
+      // Collect image URLs from blocks
       (postExists.blocks as any[]).forEach(block => {
         if (block.type === 'image' && block.src) {
           imageUrlsToDelete.push(block.src);
 
-          // Adiciona a URL do thumbnail correspondente para deleção também
+            // Also add the corresponding thumbnail URL for deletion
           imageUrlsToDelete.push(generateThumbnailUrl(block.src));
         }
      });
-
-     // Log para debug - adicione isso temporariamente
+     
      console.log('URLs coletadas para deleção:', imageUrlsToDelete);   
    
-     // Remove duplicatas e filtra apenas URLs do Vercel Blob
+    // Remove duplicates and filter only Vercel Blob URLs
     const uniqueVercelBlobUrls = [...new Set(imageUrlsToDelete)]
       .filter(url => url.includes('blob.vercel-storage.com'));
 
      console.log('URLs do Vercel Blob para deletar:', uniqueVercelBlobUrls);
 
-     // Deleta apenas as imagens do Vercel Blob
+    // Delete only images from Vercel Blob
      if (uniqueVercelBlobUrls.length > 0) {
        try {
          await del(uniqueVercelBlobUrls);
          console.log(`Deletadas ${uniqueVercelBlobUrls.length} imagens do Vercel Blob`);
        } catch (error) {
          console.error('Erro ao deletar imagens do Vercel Blob:', error);
-         // Continue com a deleção do post mesmo se falhar ao deletar as imagens
+         // Continue deleting the post even if image deletion fails
        }
      }
 
