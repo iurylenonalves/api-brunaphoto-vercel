@@ -25,18 +25,20 @@ model User {
 }
 
 model Post {
-  id           String    @id @default(uuid())
-  slug         String    @db.VarChar(255)
-  title        String
-  subtitle     String
-  locale       String    @db.VarChar(5)
-  blocks       Json
-  thumbnail    String?
-  thumbnailAlt String?
-  publishedAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  relatedSlug  String?   @db.VarChar(255)
+  id              String    @id @default(uuid())
+  slug            String    @db.VarChar(255)
+  title           String
+  subtitle        String
+  locale          String    @db.VarChar(5)
+  blocks          Json
+  thumbnail       String?
+  thumbnailAlt    String?
+  thumbnailWidth  Int?
+  thumbnailHeight Int?
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  relatedSlug     String?   @db.VarChar(255)
 
   @@unique([slug, locale])
 }

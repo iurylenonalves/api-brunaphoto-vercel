@@ -165,6 +165,33 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
     });
   }
 
+  async findRecommendedPosts(currentPostId: string, locale: string, limit: number = 3) {
+    return prisma.post.findMany({
+      where: {
+        locale,
+        id: {
+          not: currentPostId,
+        },
+        publishedAt: {
+          not: null,
+        },
+      },
+      orderBy: [
+        { publishedAt: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      take: limit,
+      select: {
+        slug: true,
+        title: true,
+        thumbnail: true,
+        thumbnailAlt: true,
+        thumbnailWidth: true,
+        thumbnailHeight: true,
+      },
+    });
+  }
+
   async findBySlug(slug: string, locale: string) {
     const currentPost = await prisma.post.findUnique({
       where: {
@@ -225,6 +252,9 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
         select: { title: true, slug: true },
       }),
     ]);
+
+    // Find recommended posts excluding the current post
+    const recommendedPosts = await this.findRecommendedPosts(currentPost.id, locale);
     
     // Return the post along with navigation links
     return {
@@ -232,7 +262,8 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
       navigation: {
         previous: previousPost,
         next: nextPost,
-      }
+      },
+      recommended: recommendedPosts,
     };
   }
 
