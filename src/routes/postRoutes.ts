@@ -15,7 +15,7 @@ router.get("/:slug", postController.getPostBySlug);
 
 router.post("/", requireAuth, postController.create);
 
-router.put("/:slug", requireAuth, postController.update);
+router.put("/:slug/:locale", requireAuth, postController.update);
 router.delete("/:slug", requireAuth, postController.delete);
 
 export default router;
