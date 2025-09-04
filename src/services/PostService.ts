@@ -184,6 +184,7 @@ async processAndUploadSingleImage(file: Express.Multer.File): Promise<ProcessedI
       select: {
         slug: true,
         title: true,
+        subtitle: true,
         thumbnail: true,
         thumbnailAlt: true,
         thumbnailWidth: true,
