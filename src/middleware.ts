@@ -10,7 +10,7 @@ export function setupMiddleware(app: Application): void {
     origin: [
       'https://brunaalvesphoto.com',
       'https://www.brunaalvesphoto.com',
-      'https://brunaalvesphoto-frontend-git-fea-969cb0-iurylenonalves-projects.vercel.app',
+      'https://brunaalvesphoto-frontend.vercel.app',
       'http://localhost:3000',
     ],
     credentials: true,
