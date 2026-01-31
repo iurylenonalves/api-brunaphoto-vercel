@@ -1,201 +1,153 @@
-# PhotoHub
+# Bruna Alves Photography API
 
-## Overview
-This project is a software solution that began as an MVP (Minimum Viable Product) and is evolving toward a SaaS (Software as a Service) model. This README documents the current state of the project, its architecture, setup instructions, and future development plans.
+This is the backend API developed for Bruna Alves' photography website. It serves as the core for blog content management and contact form processing, designed to be consumed by a modern frontend.
 
-**Live Site:** [brunaalvesphoto.com](https://brunaalvesphoto.com/#contact)
+The API was built using **Node.js** with **TypeScript** and **Express**, and is optimized for deployment on **Vercel** (Serverless Functions).
 
-## Table of Contents
-- [Current Status](#current-status)
-- [Features](#features)
-- [Technology Stack](#technology-stack)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Configuration](#configuration)
-- [Architecture](#architecture)
-- [Screen Flow](#screen-flow)
-- [Architecture Diagram](#architecture-diagram)
-- [API Documentation](#api-documentation)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
+## 🚀 Technologies
 
-## Current Status
-The project is currently in MVP phase with core functionality implemented. We're preparing for the transition to a full SaaS solution with multi-tenancy, subscription management, and enhanced features.
+- **Language:** TypeScript
+- **Framework:** Express.js
+- **Database:** PostgreSQL (via Prisma ORM)
+- **Hosting:** Vercel (Serverless Functions)
+- **File Storage:** Vercel Blob
+- **Image Processing:** Sharp
+- **Authentication:** Google OAuth2 + JWT
+- **E-mail:** Nodemailer
 
-## Features
-### MVP Features (Implemented)
-- Responsive landing page optimized for all device types
-- Professional photography portfolio showcase
-- WhatsApp integration for direct contact and quote requests
-- Internationalization with full support for English and Portuguese languages
-- SEO optimization for better visibility
-- Modern and user-friendly interface
+## 🏗️ Architecture
 
-### Planned SaaS Features
-- User registration and secure authentication system
-- Client dashboard for package selection and purchase
-- Interactive photo gallery for clients to select pre-edited photos
-- Option to choose additional photos beyond package limits
-- Shopping cart functionality with specific pricing per additional photo
-- Secure payment gateway integration
-- High-resolution photo download capability for final deliverables
-- Photographer administration area with:
-  - Client management system
-  - Appointment scheduling
-  - Pre-edited photo upload interface
-  - Final edited photo delivery system
-- Automated workflows for photo approval and delivery
-- Usage analytics and reporting
-- Multi-tier subscription model
+The application follows a layered architecture (simplified Controller-Service-Repository pattern), separating responsibilities to facilitate maintenance and scalability.
 
-## Technology Stack
-- **Frontend**: Next.js, React, Tailwind
-- **Backend**: Node.js, Express
-- **Database**: Prisma, PostgreSQL
-- **Authentication**: NextAuth.js
-- **Validation**: Zod
-- **Hosting/Deployment**: Vercel
-- **CI/CD**: GitHub Actions
+### Blog Flow
+The blog system is the central component of the API.
 
-## Getting Started
+1.  **Post Creation:**
+    - The administrator (authenticated) sends post data via POST `/api/posts`.
+    - Data includes: title, subtitle, locale (language), `relatedSlug` (to link translations), and content in JSON blocks (`blocks`).
+    - The block structure allows for total flexibility in frontend rendering (e.g., paragraphs, interlaced images, videos).
+
+2.  **Image Processing:**
+    - When uploading an image (either via upload endpoint or during post creation, depending on implementation), the API uses the `sharp` library to process it.
+    - **Optimization:** The main image is resized (max 1920px width) and converted to **WebP** format for maximum web performance.
+    - **Thumbnail:** A thumbnail (max 500px width) is automatically generated (`-thumb.webp`).
+    - Both versions are sent to **Vercel Blob Storage**, ensuring fast and secure delivery.
+
+3.  **Persistence:**
+    - Post metadata, slugs, and image links are persisted in PostgreSQL.
+    - The `slug` field combined with `locale` ensures unique URLs for each language.
+
+### Contact Flow
+1.  The frontend contact form sends a `POST` request to `/api/contact`.
+2.  The request body contains `name`, `email`, and `message`.
+3.  The API validates the data and uses `Nodemailer` (configured via SMTP) to format and send an HTML email directly to the photographer's inbox.
+
+### Authentication
+1.  Administrative access is restricted and performed via **Google Login**.
+2.  The admin logs in on the frontend with their Google account.
+3.  The frontend sends the `credential` (Google token) to `/api/auth/google`.
+4.  The API verifies the token's validity and if the email belongs to the `ALLOWED_ADMINS` list.
+5.  If authorized, a **JWT** (JSON Web Token) is generated and returned.
+6.  Protected routes (such as creating/editing posts) require this token in the `Authorization` header.
+
+## 📂 Project Structure
+
+```
+api-brunaphoto-vercel/
+├── api/                # Entry point for Vercel Serverless Functions
+├── prisma/             # Database schema and migration files
+├── src/
+│   ├── app.ts          # Main Express configuration and general Middlewares
+│   ├── controllers/    # Control logic (receives request, calls service, returns response)
+│   ├── database/       # Instantiated Prisma Client
+│   ├── errors/         # Custom error classes (HttpError)
+│   ├── middlewares/    # Middlewares (Auth, Upload, Validation, Error)
+│   ├── routes/         # Endpoint definitions and routing
+│   ├── services/       # Business logic (PostService, EmailService)
+│   ├── utils/          # Utility functions (JWT, Vercel Blob helpers)
+│   └── types.ts        # Global TypeScript type definitions
+├── vercel.json         # Vercel routing and rewrites configuration
+└── package.json
+```
+
+## 🛠️ Configuration and Installation
 
 ### Prerequisites
-- Node.js version 18.x or higher
-- npm version 9.x or higher
-- Express
-- Prisma ORM
-- PostgreSQL instance (local or cloud)
-- NextAuth.js
-- Zod (for schema validation)
+- Node.js (v18+)
+- PostgreSQL (Local or remote, e.g., Neon/Supabase)
+
+### Environment Variables (.env)
+Create a `.env` file in the project root with the following keys:
+
+```env
+# Database (Prisma)
+DATABASE_URL="postgresql://user:pass@host:port/db?schema=public"
+DIRECT_URL="postgresql://user:pass@host:port/db?schema=public"
+
+# Google Auth & JWT
+GOOGLE_CLIENT_ID="your-google-client-id"
+ALLOWED_ADMINS="admin1@email.com,admin2@email.com"
+JWT_SECRET="your-super-secure-jwt-secret"
+
+# Email Configuration (SMTP - Nodemailer)
+SMTP_HOST="smtp.example.com"
+SMTP_PORT="587"
+SMTP_USER="user@example.com"
+SMTP_PASS="password"
+
+# Vercel Blob (Image Storage)
+BLOB_READ_WRITE_TOKEN="your-vercel-blob-token"
+```
 
 ### Installation
-```bash
-# Clone the repository
-git clone https://github.com/iurylenonalves/api-brunaphoto-vercel.git
-cd api-brunaphoto-vercel
 
-# Install dependencies
-npm install
+1.  Clone the repository and install dependencies:
+    ```bash
+    npm install
+    ```
 
-# Setup environment
-cp .env.example .env.local
-# Edit .env.local with your configuration
+2.  Generate Prisma artifacts:
+    ```bash
+    npx prisma generate
+    ```
 
-# Run the development server
-npm run dev
-```
+3.  Run migrations to create database tables:
+    ```bash
+    npx prisma migrate dev
+    ```
 
-## Architecture
+4.  Start development server:
+    ```bash
+    npm run dev
+    ```
 
-The project follows a modern architecture separating frontend and backend concerns while facilitating communication between them.
+## 📡 Main Endpoints
 
-### Frontend Architecture
-The frontend for this project has been moved to a separate repository. You can find it here:
+### Auth
+- `POST /api/auth/google`: Login with Google account (validates admin and returns JWT).
 
-[Frontend Repository - Bruna Photo](git@github.com:iurylenonalves/brunaalvesphoto-frontend.git)
+### Blog (Posts)
+- `GET /api/posts`: List posts (with pagination and language filters).
+- `GET /api/posts/:slug`: Details of a specific post.
+- `POST /api/posts`: Create post (Auth Required).
+- `PUT /api/posts/:id`: Update post (Auth Required).
+- `DELETE /api/posts/:id`: Delete post (Auth Required).
 
-### Backend Architecture
-The backend follows a layered architecture pattern:
-```bash
-photoapp/
-├── src/
-│   ├── server/
-│   │   │── controllers/
-│   │   │── middlewares/
-│   │   │── model/
-│   │   └── routes/
-├── .gitignore
-```
+### Contact
+- `POST /api/contact`: Send contact form.
 
-### Screen Flow
-Screen Flow Diagram
+### Uploads
+- `POST /api/uploads/image`: Single image upload (Auth Required).
+- `POST /api/uploads/sign`: Signature for client-side upload (if implemented).
 
-### Architecture Diagram
-Architecture Diagram
+## 🚀 Deploy
 
+The project is configured for continuous deployment on **Vercel**.
+The `vercel.json` file ensures that all API requests are correctly directed to the serverless function.
 
-## API Documentation
-The API endpoints follow RESTful conventions. Here are the key endpoints:
+1.  Connect the repository to Vercel.
+2.  Add environment variables in the Vercel dashboard.
+3.  Deploy will happen automatically on push to the `main` branch.
 
-### Contact Form
-- `POST /api/contacts`: This endpoint allows users to send a contact message. The request body must include the following fields:
-  - `name` (string, required): The name of the user.
-  - `email` (string, required): The email address of the user.
-  - `message` (string, required): The message content (maximum 1000 characters).
-
-  **Example Request:**
-  ```json
-  {
-    "name": "John Doe",
-    "email": "johndoe@example.com",
-    "message": "Hello, I would like to know more about your photography packages."
-  }
-
-### Authentication and Users
-- `POST /api/auth/register`: Register new user
-- `POST /api/auth/login`: Sign in user
-- `GET /api/auth/profile`: Get current session
-
-### Photo Packages
-- `GET /api/packages`: Get photo Packages
-
-### Bookings
-- `POST /api/bookings`: Create booking
-- `GET /api/bookings`: Get user bookins
-
-### Photos
-- `GET /api/photos/pre-edited/1`: Get pre-edited photos
-- `GET /api/photos/select`: Select photos
-- `GET /api/photos/final/1/download`: Download final photos
-
-### Payments
-- `GET /api/payments`: Make payment
-
-
-## Roadmap
-### Phase 1: MVP (Completed)
-- [x] Implement core functionality
-- [x] Minimal viable UI/UX
-- [x] Integration with WhatsApp and Social Media
-- [x] Contact Form
-- [x] Consume backend API hosted on Vercel
-- [x] SEO optimization (metadata, OpenGraph, and sitemap.xml)
-- [x] Initial deployment (Vercel)
-- [x] Domain and hosting setup with Hostinger
-
-### Phase 2: SaaS Transition (In Progress)
-- [ ] Basic authentication
-- [ ] Refactor for multi-tenancy
-- [ ] Authentication
-- [ ] Photo Packages
-- [ ] Bookings
-- [ ] User Admin Photos 
-- [ ] Payments
-- [ ] Implement subscription management
-- [ ] Add usage quotas and rate limiting
-- [ ] Enhance security measures
-
-### Phase 3: SaaS Expansion
-- [ ] 
-- [ ] 
-- [ ] 
-- [ ] 
-
-## Contributing
-We welcome contributions to this project. Please follow these steps:
-
-1. Fork the repository: [api-brunaphoto-vercel](https://github.com/iurylenonalves/api-brunaphoto-vercel.git)
-2. Clone your fork:
-   ```bash
-   git clone https://github.com/your-username/api-brunaphoto-vercel.git
-   cd api-brunaphoto-vercel
-   ```
-3. Create a feature branch (`git checkout -b feature/amazing-feature`)
-4. Commit your changes (`git commit -m 'Add some amazing feature'`)
-5. Push to the branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
-
-## License
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+---
+**Developed for Bruna Alves Photography**
