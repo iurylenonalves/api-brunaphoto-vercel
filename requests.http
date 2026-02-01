@@ -1,0 +1,30 @@
+@baseUrl = http://localhost:3000
+
+### 1. Health Check
+GET {{baseUrl}}/api/health
+
+### 2. List All Packages (Public)
+GET {{baseUrl}}/api/packages
+Content-Type: application/json
+
+### 3. Get Specific Package Details (Copy an ID from the list above)
+GET {{baseUrl}}/api/packages/your-id-here
+Content-Type: application/json
+
+### 4. Create Checkout Session (Deposit £50)
+POST {{baseUrl}}/api/checkout/session
+Content-Type: application/json
+
+{
+    "priceId": "price_fake_test_id", 
+    "paymentType": "DEPOSIT",
+    "locale": "pt",
+    "packageId": "database-package-id" 
+}
+# Note: For this to work, you need STRIPE_SECRET_KEY in .env
+# The "priceId" must be a real Stripe ID if you want to see the generated URL, 
+# otherwise Stripe will return "No such price" error.
+
+### 5. Simulate Webhook (Advanced)
+# Requires generating a valid signature, hard to test via simple http client.
+# Recommend using Stripe CLI for this: "stripe listen --forward-to localhost:3000/api/webhooks/stripe"
