@@ -3,7 +3,14 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 
 export function setupMiddleware(app: Application): void {
-  app.use(express.json());
+  // Special configuration for Stripe Webhooks that need rawBody for signature validation
+  app.use(express.json({
+    verify: (req: any, res, buf) => {
+      if (req.originalUrl.startsWith('/api/webhooks')) {
+        req.rawBody = buf.toString();
+      }
+    }
+  }));
   app.use(express.urlencoded({ extended: true }));
 
   app.use(cors({
