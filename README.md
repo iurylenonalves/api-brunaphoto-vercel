@@ -20,7 +20,7 @@ The API was built using **Node.js** with **TypeScript** and **Express**, and is 
 The application follows a layered architecture (simplified Controller-Service-Repository pattern), separating responsibilities to facilitate maintenance and scalability.
 
 ### Frontend Integration
-This API acts as the backend service for the **[Bruna Alves Photography Frontend](../brunaalvesphoto-frontend)**.
+This API acts as the backend service for the **[Bruna Alves Photography Frontend](https://github.com/iurylenonalves/brunaalvesphoto-frontend)**.
 Although built as a REST API, specific data structures (like the JSON Blocks for blog posts) are optimized to be consumed by the Next.js frontend components.
 
 - **CORS Policy:** By default, it is configured to accept requests from the frontend domain (or localhost during development).
