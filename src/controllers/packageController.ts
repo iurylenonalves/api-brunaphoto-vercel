@@ -5,8 +5,14 @@ export class PackageController {
   
   // List all packages
   static async index(req: Request, res: Response) {
-    const packages = await PackageService.listAll();
+    const packages = await PackageService.listAll(false);
     return res.json(packages);
+  }
+
+  // Admin List (includes inactive)
+  static async adminList(req: Request, res: Response) {
+      const packages = await PackageService.listAll(true);
+      return res.json(packages);
   }
 
   // Get a package by ID
@@ -23,7 +29,7 @@ export class PackageController {
 
   // Create new package
   static async create(req: Request, res: Response) {
-    const { name, description, totalPrice, depositPrice, stripeProductId } = req.body;
+    const { name, namePt, description, descriptionPt, totalPrice, depositPrice, stripeProductId, active } = req.body;
 
     // Basic validation
     if (!name || totalPrice === undefined || depositPrice === undefined) {
@@ -32,7 +38,7 @@ export class PackageController {
 
     try {
       const pkg = await PackageService.create({ 
-        name, description, totalPrice, depositPrice, stripeProductId 
+        name, namePt, description, descriptionPt, totalPrice, depositPrice, stripeProductId, active 
       });
       return res.status(201).json(pkg);
     } catch (err: any) {

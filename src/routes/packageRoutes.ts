@@ -9,6 +9,7 @@ router.get('/', PackageController.index);
 router.get('/:id', PackageController.show);
 
 // Protected Routes (Admin Dashboard)
+router.get('/admin/all', requireAuth, PackageController.adminList);
 router.post('/', requireAuth, PackageController.create);
 router.put('/:id', requireAuth, PackageController.update);
 router.delete('/:id', requireAuth, PackageController.delete);
