@@ -46,7 +46,9 @@ model Post {
 model Package {
   id              String    @id @default(uuid())
   name            String
+  namePt          String?   // Tradução do nome para PT
   description     String?
+  descriptionPt   String?   // Tradução da descrição para PT
   totalPrice      Decimal   @db.Decimal(10, 2)
   depositPrice    Decimal   @db.Decimal(10, 2)
   stripeProductId String?   // Stripe Product ID (if available)

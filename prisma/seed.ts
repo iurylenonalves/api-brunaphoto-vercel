@@ -14,28 +14,36 @@ async function main() {
   const packages = [
     {
       name: 'Family Session (Bronze)',
+      namePt: 'Ensaio Família (Bronze)',
       description: '1 hour session, 10 digital images',
+      descriptionPt: '1 hora de ensaio, 10 fotos digitais',
       totalPrice: 150.00,
       depositPrice: 50.00,
       stripeProductId: 'prod_bronze_placeholder'
     },
     {
       name: 'Family Session (Silver)',
+      namePt: 'Ensaio Família (Prata)',
       description: '2 hour session, 20 digital images',
+      descriptionPt: '2 horas de ensaio, 20 fotos digitais',
       totalPrice: 300.00,
       depositPrice: 50.00,
       stripeProductId: 'prod_silver_placeholder'
     },
     {
       name: 'Family Session (Gold)',
+      namePt: 'Ensaio Família (Ouro)',
       description: '3 hour session, all digital images + album',
+      descriptionPt: '3 horas de ensaio, todas fotos digitais + álbum',
       totalPrice: 450.00,
       depositPrice: 50.00,
       stripeProductId: 'prod_gold_placeholder'
     },
     {
       name: 'Newborn Session',
+      namePt: 'Ensaio Newborn',
       description: 'Studio session, up to 4 hours',
+      descriptionPt: 'Ensaio em estúdio, até 4 horas',
       totalPrice: 350.00,
       depositPrice: 50.00,
       stripeProductId: 'prod_newborn_placeholder'
@@ -53,7 +61,15 @@ async function main() {
       });
       console.log(`✅ Created package: ${pkg.name}`);
     } else {
-      console.log(`ℹ️ Package already exists: ${pkg.name}`);
+        // Update to include translations
+        await prisma.package.update({
+            where: { id: existing.id },
+            data: {
+                namePt: pkg.namePt,
+                descriptionPt: pkg.descriptionPt
+            }
+        });
+        console.log(`🔄 Updated package: ${pkg.name}`);
     }
   }
 
