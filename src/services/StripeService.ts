@@ -7,8 +7,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 
 interface CheckoutSessionParams {
-  packageId?: string; // Internal package ID
-  priceId: string;    // Stripe Price ID
+  packageId?: string;
+  amount: number;     // Amount in cents (or smallest currency unit)
+  currency: string;   // 'gbp', 'eur', etc.
+  productName: string;
+  productDescription?: string;
   paymentType: 'DEPOSIT' | 'FULL' | 'BALANCE';
   locale: string;
   successUrl: string;
@@ -26,21 +29,28 @@ export class StripeService {
       throw new Error('STRIPE_SECRET_KEY is not defined');
     }
 
-    // Buscar informações do pacote se packageId for fornecido
-    // (This will be useful for metadata, but we'll trust the priceId coming from front for now
-    // or validate against DB if we have already populated)
-    let packageName = 'Photography Session';
-    
-    if (params.packageId) {
-      const pkg = await prisma.package.findUnique({ where: { id: params.packageId } });
-      if (pkg) packageName = pkg.name;
-    }
+    // Booking Fee (DEPOSIT) must be paid immediately via Card (non-refundable).
+    // Installment/Wallet options like Klarna/Afterpay/PayPal are disabled for this type.
+    const allowedPaymentMethods: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = 
+        params.paymentType === 'DEPOSIT' 
+            ? ['card'] 
+            : ['card', 'klarna', 'afterpay_clearpay', 'paypal'];
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'], // Klarna is enabled in Dashboard, no need to put here explicitly if using 'automatic_payment_methods'
+      payment_method_types: allowedPaymentMethods,
       line_items: [
         {
-          price: params.priceId,
+          price_data: {
+            currency: params.currency,
+            product_data: {
+              name: params.productName,
+              description: params.productDescription,
+              metadata: {
+                  packageId: params.packageId || ''
+              }
+            },
+            unit_amount: Math.round(params.amount * 100), // Ensure integer cents
+          },
           quantity: 1,
         },
       ],
@@ -53,9 +63,6 @@ export class StripeService {
         paymentType: params.paymentType,
         locale: params.locale
       },
-      // Enable payment methods configured in Dashboard (Card, Klarna, Apple Pay, etc)
-      // But for immediate payment sessions, 'payment_method_types' or 'automatic_payment_methods'
-      // The most modern way is to use ui_mode: 'hosted' (default) and let the dashboard control the methods.
     });
 
     return session;

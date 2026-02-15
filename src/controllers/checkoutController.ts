@@ -7,10 +7,44 @@ export class CheckoutController {
   
   static async createSession(req: Request, res: Response) {
     try {
-      const { priceId, packageId, paymentType, locale, customerEmail } = req.body;
+      const { packageId, paymentType, locale, customerEmail } = req.body;
 
-      if (!priceId || !paymentType) {
-        return res.status(400).json({ error: 'Missing priceId or paymentType' });
+      if (!packageId || !paymentType) {
+        return res.status(400).json({ error: 'Missing packageId or paymentType' });
+      }
+
+      // Fetch dynamic price from Database
+      const pkg = await prisma.package.findUnique({
+          where: { id: packageId }
+      });
+
+      if (!pkg) {
+          return res.status(404).json({ error: 'Package not found' });
+      }
+
+      if (!pkg.active) {
+          return res.status(400).json({ error: 'This package is no longer available.' });
+      }
+
+      // Calculate Amount
+      let amount = 0;
+      let description = '';
+      const isPt = locale === 'pt';
+      const packageName = isPt && pkg.namePt ? pkg.namePt : pkg.name;
+
+      if (paymentType === 'DEPOSIT') {
+          amount = Number(pkg.depositPrice);
+          description = isPt ? `Taxa de reserva (Não reembolsável): ${packageName}` : `Booking Fee (Non-refundable): ${packageName}`;
+      } else if (paymentType === 'FULL') {
+          amount = Number(pkg.totalPrice);
+          description = isPt ? `Pagamento total: ${packageName}` : `Full payment: ${packageName}`;
+      } else if (paymentType === 'BALANCE') {
+          amount = Number(pkg.totalPrice) - Number(pkg.depositPrice);
+          description = isPt ? `Pagamento restante: ${packageName}` : `Remaining balance: ${packageName}`;
+      }
+
+      if (amount <= 0) {
+          return res.status(400).json({ error: 'Invalid calculation. Price must be greater than 0.' });
       }
 
       // Return URLs for the Frontend
@@ -19,8 +53,11 @@ export class CheckoutController {
       const cancelUrl = `${origin}/${locale || 'en'}/checkout/cancel`;
 
       const session = await StripeService.createCheckoutSession({
-        priceId,
         packageId,
+        amount,
+        currency: 'gbp', // Default currency
+        productName: isPt ? `Pagamento: ${packageName}` : `Payment: ${packageName}`,
+        productDescription: description,
         paymentType,
         locale: locale || 'en',
         customerEmail,
