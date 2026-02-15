@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import { StripeService } from '../services/StripeService';
 import { prisma } from '../database/client';
-// import { EmailService } from '../services/EmailService'; // TODO: Import when confirmation method exists
+import { sendBookingConfirmation, sendAdminBookingNotification } from '../services/EmailService';
 
 export class CheckoutController {
   
   static async createSession(req: Request, res: Response) {
     try {
-      const { packageId, paymentType, locale, customerEmail } = req.body;
+      const { packageId, paymentType, locale, customerEmail, sessionDate } = req.body;
 
       if (!packageId || !paymentType) {
         return res.status(400).json({ error: 'Missing packageId or paymentType' });
@@ -62,7 +62,8 @@ export class CheckoutController {
         locale: locale || 'en',
         customerEmail,
         successUrl,
-        cancelUrl
+        cancelUrl,
+        sessionDate: sessionDate || undefined, // Pass date to Stripe
       });
 
       return res.json({ url: session.url });
@@ -102,6 +103,10 @@ export class CheckoutController {
 
       // 1. Create database record (Booking)
       try {
+        const amount = session.amount_total ? (session.amount_total / 100).toFixed(2) : '0.00';
+        const currency = (session.currency || 'gbp').toUpperCase();
+        const sessionDate = session.metadata?.sessionDate ? new Date(session.metadata.sessionDate) : null;
+        
         await prisma.booking.create({
             data: {
                 stripeSessionId: session.id,
@@ -111,15 +116,38 @@ export class CheckoutController {
                 currency: session.currency || 'gbp',
                 paymentType: session.metadata?.paymentType || 'UNKNOWN',
                 status: 'paid',
-                packageId: session.metadata?.packageId || null
+                packageId: session.metadata?.packageId || null,
+                sessionDate: sessionDate // Save session date to Database
             }
         });
 
-        // 2. Send Confirmation Email
-        // await EmailService.sendBookingConfirmation(session.customer_details.email, session.metadata);
+        // 2. Send Confirmation Emails
+        const emailDetails = {
+            customerName: session.customer_details?.name || 'Cliente',
+            customerEmail: session.customer_details?.email || '',
+            amount: `${currency} ${amount}`,
+            packageName: session.metadata?.productName || 'Photography Package', // We need to ensure productName is passed in metadata or fetched
+            paymentType: session.metadata?.paymentType as any,
+            locale: session.metadata?.locale || 'en',
+            stripeSessionId: session.id,
+            sessionDate: session.metadata?.sessionDate || undefined // Send date to email template
+        };
+
+        // If productName is not in metadata, we could fetch it from DB, but let's try to rely on session data or fallback
+        // To be safe, let's keep it simple for now or fetch the package again if critical
+        if (session.metadata?.packageId) {
+             const pkg = await prisma.package.findUnique({ where: { id: session.metadata.packageId }});
+             if (pkg) {
+                 const isPt = emailDetails.locale === 'pt';
+                 emailDetails.packageName = isPt && pkg.namePt ? pkg.namePt : pkg.name;
+             }
+        }
+
+        await sendBookingConfirmation(emailDetails);
+        await sendAdminBookingNotification(emailDetails);
         
       } catch (dbError) {
-          console.error("Error saving booking to DB:", dbError);
+          console.error("Error processing successful payment:", dbError);
           // We don't return 500 so Stripe doesn't keep retrying infinitely if it was a unique database error
           // But ideally the log alerts the dev
       }

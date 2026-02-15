@@ -17,6 +17,7 @@ interface CheckoutSessionParams {
   successUrl: string;
   cancelUrl: string;
   customerEmail?: string;
+  sessionDate?: string; // Add optional session date to parameters
 }
 
 export class StripeService {
@@ -61,7 +62,8 @@ export class StripeService {
       metadata: {
         packageId: params.packageId || '',
         paymentType: params.paymentType,
-        locale: params.locale
+        locale: params.locale,
+        sessionDate: params.sessionDate || '', // Store the date in Stripe metadata
       },
     });
 

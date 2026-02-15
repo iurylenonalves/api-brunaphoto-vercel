@@ -68,6 +68,8 @@ model Booking {
   stripeSessionId String   @unique
   status          String   // "pending", "paid", "failed", "refunded"
   
+  sessionDate     DateTime? // Data/Hora agendada para a sessão
+  
   packageId       String?
   package         Package? @relation(fields: [packageId], references: [id])
   
