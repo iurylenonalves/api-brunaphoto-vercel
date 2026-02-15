@@ -18,6 +18,7 @@ interface CheckoutSessionParams {
   cancelUrl: string;
   customerEmail?: string;
   sessionDate?: string; // Add optional session date to parameters
+  idempotencyKey?: string;
 }
 
 export class StripeService {
@@ -65,6 +66,8 @@ export class StripeService {
         locale: params.locale,
         sessionDate: params.sessionDate || '', // Store the date in Stripe metadata
       },
+    }, {
+      idempotencyKey: params.idempotencyKey, // Use key if provided
     });
 
     return session;

@@ -8,6 +8,7 @@ export class CheckoutController {
   static async createSession(req: Request, res: Response) {
     try {
       const { packageId, paymentType, locale, customerEmail, sessionDate } = req.body;
+      const idempotencyKey = req.headers['idempotency-key'] as string | undefined;
 
       if (!packageId || !paymentType) {
         return res.status(400).json({ error: 'Missing packageId or paymentType' });
@@ -64,6 +65,7 @@ export class CheckoutController {
         successUrl,
         cancelUrl,
         sessionDate: sessionDate || undefined, // Pass date to Stripe
+        idempotencyKey,
       });
 
       return res.json({ url: session.url });
