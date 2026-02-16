@@ -27,6 +27,14 @@ router.post(
   CheckoutController.createSession
 );
 
+// Route for manual bank transfer booking
+// POST /api/checkout/manual
+router.post(
+  '/manual',
+  checkoutLimiter,
+  CheckoutController.createManualBooking
+);
+
 // Stripe Webhook (Must not have Auth Middleware)
 // POST /api/checkout/webhook  <-- Oops, better pattern is /api/webhooks/stripe
 // But I'll leave it here for now and adjust in route index.ts

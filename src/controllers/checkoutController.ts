@@ -85,6 +85,50 @@ export class CheckoutController {
     }
   }
 
+  static async createManualBooking(req: Request, res: Response) {
+    try {
+      const { packageId, paymentType, locale, customerEmail, customerName, sessionDate } = req.body;
+      const termsAcceptedAt = new Date().toISOString();
+      const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+      const clientUserAgent = req.headers['user-agent'] || 'unknown';
+
+      if (!packageId || !paymentType || !customerEmail || !customerName) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const pkg = await prisma.package.findUnique({ where: { id: packageId } });
+      if (!pkg || !pkg.active) {
+          return res.status(400).json({ error: 'Package not available' });
+      }
+
+      // Create Booking Record
+      const booking = await prisma.booking.create({
+          data: {
+              customerName,
+              customerEmail,
+              amountPaid: 0, // Payment pending
+              currency: 'gbp',
+              paymentType,
+              status: 'pending', // Pending transfer
+              packageId,
+              sessionDate: sessionDate ? new Date(sessionDate) : null,
+              termsAccepted: true,
+              termsAcceptedAt: new Date(termsAcceptedAt),
+              clientIp,
+              clientUserAgent,
+              stripeSessionId: null 
+          }
+      });
+      
+      // We could trigger an email here "Transfer Instructions sent"
+
+      return res.json({ success: true, bookingId: booking.id, reference: booking.id.slice(0, 8).toUpperCase() });
+    } catch (error: any) {
+        console.error('Manual Booking Error:', error);
+        return res.status(500).json({ error: error.message });
+    }
+  }
+
   static async handleWebhook(req: Request, res: Response) {
     const signature = req.headers['stripe-signature'];
 

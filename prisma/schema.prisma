@@ -46,9 +46,9 @@ model Post {
 model Package {
   id              String    @id @default(uuid())
   name            String
-  namePt          String?   // Tradução do nome para PT
+  namePt          String?   
   description     String?
-  descriptionPt   String?   // Tradução da descrição para PT
+  descriptionPt   String?   
   totalPrice      Decimal   @db.Decimal(10, 2)
   depositPrice    Decimal   @db.Decimal(10, 2)
   stripeProductId String?   // Stripe Product ID (if available)
@@ -65,10 +65,16 @@ model Booking {
   amountPaid      Decimal  @db.Decimal(10, 2)
   currency        String   @default("gbp")
   paymentType     String   // "DEPOSIT", "FULL", "BALANCE", "CUSTOM"
-  stripeSessionId String   @unique
+  stripeSessionId String?  @unique
   status          String   // "pending", "paid", "failed", "refunded"
   
-  sessionDate     DateTime? // Data/Hora agendada para a sessão
+  // Audit Fields
+  termsAccepted   Boolean  @default(false)
+  termsAcceptedAt DateTime?
+  clientIp        String?
+  clientUserAgent String?
+
+  sessionDate     DateTime?
   
   packageId       String?
   package         Package? @relation(fields: [packageId], references: [id])
