@@ -87,7 +87,7 @@ export async function sendBookingConfirmation(details: BookingEmailDetails): Pro
         ${details.sessionDate ? `<p><strong>Data da Sessão:</strong> ${formatDateForEmail(details.sessionDate, 'pt')}</p>` : ''}
         <p><strong>Valor Pago:</strong> ${details.amount}</p>
         <p><strong>Tipo de Pagamento:</strong> ${formatPaymentType(details.paymentType, 'pt')}</p>
-        <p><strong>Referência:</strong> ${details.stripeSessionId.slice(-8)}</p>
+        <p><strong>Referência:</strong> ${details.stripeSessionId?.startsWith('MANUAL-') ? details.stripeSessionId.slice(7) : (details.stripeSessionId?.slice(-8) || '')}</p>
       </div>
 
       <p>Em breve entrarei em contato para confirmarmos os próximos passos da sua sessão.</p>
@@ -108,7 +108,7 @@ export async function sendBookingConfirmation(details: BookingEmailDetails): Pro
         ${details.sessionDate ? `<p><strong>Session Date:</strong> ${formatDateForEmail(details.sessionDate, 'en')}</p>` : ''}
         <p><strong>Amount Paid:</strong> ${details.amount}</p>
         <p><strong>Payment Type:</strong> ${formatPaymentType(details.paymentType, 'en')}</p>
-        <p><strong>Reference:</strong> ${details.stripeSessionId.slice(-8)}</p>
+        <p><strong>Reference:</strong> ${details.stripeSessionId?.startsWith('MANUAL-') ? details.stripeSessionId.slice(7) : (details.stripeSessionId?.slice(-8) || '')}</p>
       </div>
 
       <p>I will be in touch shortly to confirm the next steps for your session.</p>

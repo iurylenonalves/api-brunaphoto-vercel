@@ -108,6 +108,7 @@ export class CheckoutController {
               customerEmail,
               amountPaid: 0, // Payment pending
               currency: 'gbp',
+              locale: locale || 'en', // Save locale
               paymentType,
               status: 'pending', // Pending transfer
               packageId,
@@ -170,6 +171,7 @@ export class CheckoutController {
                 customerName: session.customer_details?.name,
                 amountPaid: session.amount_total ? session.amount_total / 100 : 0, // Stripe uses cents
                 currency: session.currency || 'gbp',
+                locale: session.metadata?.locale || 'en', // Save locale
                 paymentType: session.metadata?.paymentType || 'UNKNOWN',
                 status: 'paid',
                 packageId: session.metadata?.packageId || null,

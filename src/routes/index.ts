@@ -6,6 +6,7 @@ import uploadRoutes from "./uploadRoutes";
 import checkoutRoutes from "./checkoutRoutes";
 import webhookRoutes from "./webhookRoutes";
 import packageRoutes from "./packageRoutes";
+import bookingRoutes from "./bookingRoutes";
 
 const router = Router();
 
@@ -19,5 +20,10 @@ router.use("/uploads", uploadRoutes);
 router.use("/packages", packageRoutes);
 router.use("/checkout", checkoutRoutes);
 router.use("/webhooks", webhookRoutes);
+
+// Admin Only
+// Note: We might want to protect `bookings` specifically, but the route file already has middleware attached
+router.use("/bookings", bookingRoutes);
+
 
 export default router;
