@@ -9,6 +9,12 @@ export class CheckoutController {
     try {
       const { packageId, paymentType, locale, customerEmail, sessionDate } = req.body;
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined;
+      const termsAcceptedAt = new Date().toISOString(); // Capture exact server time of acceptance
+
+      // Securely capture Client IP and User Agent for Audit Trail
+      // On Vercel/proxies, IP is often in x-forwarded-for
+      const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+      const clientUserAgent = req.headers['user-agent'] || 'unknown';
 
       if (!packageId || !paymentType) {
         return res.status(400).json({ error: 'Missing packageId or paymentType' });
@@ -66,6 +72,10 @@ export class CheckoutController {
         cancelUrl,
         sessionDate: sessionDate || undefined, // Pass date to Stripe
         idempotencyKey,
+        termsAccepted: "true",
+        termsAcceptedAt,
+        clientIp,
+        clientUserAgent,
       });
 
       return res.json({ url: session.url });

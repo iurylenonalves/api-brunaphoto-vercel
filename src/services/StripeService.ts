@@ -19,6 +19,10 @@ interface CheckoutSessionParams {
   customerEmail?: string;
   sessionDate?: string; // Add optional session date to parameters
   idempotencyKey?: string;
+  termsAccepted?: string;
+  termsAcceptedAt?: string;
+  clientIp?: string;
+  clientUserAgent?: string;
 }
 
 export class StripeService {
@@ -60,11 +64,31 @@ export class StripeService {
       success_url: params.successUrl,
       cancel_url: params.cancelUrl,
       customer_email: params.customerEmail,
+      // Metadata for the Checkout Session (visible in Session details)
       metadata: {
         packageId: params.packageId || '',
         paymentType: params.paymentType,
         locale: params.locale,
-        sessionDate: params.sessionDate || '', // Store the date in Stripe metadata
+        sessionDate: params.sessionDate || '',
+        termsAccepted: params.termsAccepted || 'false',
+        termsAcceptedAt: params.termsAcceptedAt || '',
+        termsVersion: 'v1-feb-2026',
+        clientIp: params.clientIp || 'unknown',
+        userAgent: params.clientUserAgent || 'unknown',
+      },
+      // Ensure metadata is copied to the Payment Intent (visible in Payment/Charge details)
+      payment_intent_data: {
+        metadata: {
+          packageId: params.packageId || '',
+          paymentType: params.paymentType,
+          locale: params.locale,
+          sessionDate: params.sessionDate || '',
+          termsAccepted: params.termsAccepted || 'false',
+          termsAcceptedAt: params.termsAcceptedAt || '',
+          termsVersion: 'v1-feb-2026',
+          clientIp: params.clientIp || 'unknown',
+          userAgent: params.clientUserAgent || 'unknown',
+        }
       },
     }, {
       idempotencyKey: params.idempotencyKey, // Use key if provided
