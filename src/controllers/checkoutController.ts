@@ -175,7 +175,12 @@ export class CheckoutController {
                 paymentType: session.metadata?.paymentType || 'UNKNOWN',
                 status: 'paid',
                 packageId: session.metadata?.packageId || null,
-                sessionDate: sessionDate // Save session date to Database
+                sessionDate: sessionDate, // Save session date to Database
+                // Audit Fields from Metadata
+                termsAccepted: session.metadata?.termsAccepted === 'true',
+                termsAcceptedAt: session.metadata?.termsAcceptedAt ? new Date(session.metadata.termsAcceptedAt) : null,
+                clientIp: session.metadata?.clientIp || null,
+                clientUserAgent: session.metadata?.clientUserAgent || session.metadata?.userAgent || null,
             }
         });
 
