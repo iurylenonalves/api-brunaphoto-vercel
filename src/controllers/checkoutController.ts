@@ -117,7 +117,8 @@ export class CheckoutController {
               termsAcceptedAt: new Date(termsAcceptedAt),
               clientIp,
               clientUserAgent,
-              stripeSessionId: null 
+              stripeSessionId: null,
+              paymentMethod: 'TRANSFER' // Default for manual bookings
           }
       });
       
@@ -176,6 +177,7 @@ export class CheckoutController {
                 status: 'paid',
                 packageId: session.metadata?.packageId || null,
                 sessionDate: sessionDate, // Save session date to Database
+                paymentMethod: 'STRIPE', // Explicitly set payment method
                 // Audit Fields from Metadata
                 termsAccepted: session.metadata?.termsAccepted === 'true',
                 termsAcceptedAt: session.metadata?.termsAcceptedAt ? new Date(session.metadata.termsAcceptedAt) : null,

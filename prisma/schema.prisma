@@ -66,6 +66,7 @@ model Booking {
   currency        String   @default("gbp")
   locale          String   @default("en") // 'en' or 'pt'
   paymentType     String   // "DEPOSIT", "FULL", "BALANCE", "CUSTOM"
+  paymentMethod   String?  // "STRIPE", "TRANSFER", "CASH"
   stripeSessionId String?  @unique
   status          String   // "pending", "paid", "failed", "refunded"
   

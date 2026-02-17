@@ -7,8 +7,11 @@ import checkoutRoutes from "./checkoutRoutes";
 import webhookRoutes from "./webhookRoutes";
 import packageRoutes from "./packageRoutes";
 import bookingRoutes from "./bookingRoutes";
+import dashboardRoutes from "./dashboardRoutes";
 
 const router = Router();
+// ... (rest uses unchanged)
+router.use("/dashboard", dashboardRoutes);
 
 router.use("/posts", postRoutes);
 router.use("/auth", authRoutes);
