@@ -186,7 +186,27 @@ export class CheckoutController {
             }
         });
 
-        // 2. Send Confirmation Emails
+        // 2. Fetch Receipt URL (if available)
+        let receiptUrl: string | undefined;
+        if (session.payment_intent && typeof session.payment_intent === 'string') {
+            try {
+                const stripe = StripeService.getClient();
+                // Expand the payment_intent to get the latest_charge
+                const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent, {
+                    expand: ['latest_charge']
+                });
+                
+                // If it's a Charge object
+                const charge = paymentIntent.latest_charge as any;
+                if (charge && charge.receipt_url) {
+                    receiptUrl = charge.receipt_url;
+                }
+            } catch (err: any) {
+                console.error('Error fetching Stripe receipt:', err.message);
+            }
+        }
+
+        // 3. Send Confirmation Emails
         const emailDetails = {
             customerName: session.customer_details?.name || 'Cliente',
             customerEmail: session.customer_details?.email || '',
@@ -195,7 +215,8 @@ export class CheckoutController {
             paymentType: session.metadata?.paymentType as any,
             locale: session.metadata?.locale || 'en',
             stripeSessionId: session.id,
-            sessionDate: session.metadata?.sessionDate || undefined // Send date to email template
+            sessionDate: session.metadata?.sessionDate || undefined, // Send date to email template
+            receiptUrl: receiptUrl
         };
 
         // If productName is not in metadata, we could fetch it from DB, but let's try to rely on session data or fallback

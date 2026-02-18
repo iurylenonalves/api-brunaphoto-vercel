@@ -59,6 +59,7 @@ interface BookingEmailDetails {
   locale: string;
   stripeSessionId: string;
   sessionDate?: string;
+  receiptUrl?: string;
 }
 
 export async function sendBookingConfirmation(details: BookingEmailDetails): Promise<void> {
@@ -77,6 +78,14 @@ export async function sendBookingConfirmation(details: BookingEmailDetails): Pro
     ? '<p style="color: #666; font-size: 12px; margin-top: 20px;"><strong>Important:</strong> The Booking Fee is non-refundable and secures your session date exclusivelly.</p>'
     : '';
 
+  const receiptButtonHtml = details.receiptUrl 
+    ? `<div style="margin-top: 20px;">
+         <a href="${details.receiptUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+           ${isPt ? 'Ver Recibo' : 'View Receipt'}
+         </a>
+       </div>`
+    : '';
+
   const messageBodyPt = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #333;">Olá, ${details.customerName}!</h2>
@@ -89,6 +98,8 @@ export async function sendBookingConfirmation(details: BookingEmailDetails): Pro
         <p><strong>Tipo de Pagamento:</strong> ${formatPaymentType(details.paymentType, 'pt')}</p>
         <p><strong>Referência:</strong> ${details.stripeSessionId?.startsWith('MANUAL-') ? details.stripeSessionId.slice(7) : (details.stripeSessionId?.slice(-8) || '')}</p>
       </div>
+
+      ${receiptButtonHtml}
 
       <p>Em breve entrarei em contato para confirmarmos os próximos passos da sua sessão.</p>
 
@@ -110,6 +121,8 @@ export async function sendBookingConfirmation(details: BookingEmailDetails): Pro
         <p><strong>Payment Type:</strong> ${formatPaymentType(details.paymentType, 'en')}</p>
         <p><strong>Reference:</strong> ${details.stripeSessionId?.startsWith('MANUAL-') ? details.stripeSessionId.slice(7) : (details.stripeSessionId?.slice(-8) || '')}</p>
       </div>
+
+      ${receiptButtonHtml}
 
       <p>I will be in touch shortly to confirm the next steps for your session.</p>
       
