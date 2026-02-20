@@ -40,7 +40,7 @@ export class StripeService {
     const allowedPaymentMethods: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = 
         params.paymentType === 'DEPOSIT' 
             ? ['card'] 
-            : ['card', 'klarna', 'afterpay_clearpay', 'paypal'];
+            : ['card', 'klarna', 'afterpay_clearpay']; // Allow more methods for FULL/BALANCE payments (Config - 'paypal' may require additional setup)
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: allowedPaymentMethods,
