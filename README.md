@@ -13,6 +13,7 @@ The API was built using **Node.js** with **TypeScript** and **Express**, and is 
 - **File Storage:** Vercel Blob
 - **Image Processing:** Sharp
 - **Authentication:** Google OAuth2 + JWT
+- **Payments:** Stripe Checkout + Webhooks
 - **E-mail:** Nodemailer
 
 ## 🏗️ Architecture
@@ -48,6 +49,18 @@ The blog system is the central component of the API.
 2.  The request body contains `name`, `email`, and `message`.
 3.  The API validates the data and uses `Nodemailer` (configured via SMTP) to format and send an HTML email directly to the photographer's inbox.
 
+### Payment & Booking Flow
+1.  The admin manages photography packages via protected package endpoints.
+2.  The frontend/admin calls `POST /api/checkout/session` to generate Stripe Checkout sessions for `FULL`, `DEPOSIT`, or `BALANCE` payments.
+3.  For offline/bank transfer cases, `POST /api/checkout/manual` creates a manual booking flow.
+4.  Stripe sends payment events to `POST /api/webhooks/stripe`.
+5.  The API validates webhook signatures and updates booking/payment state in PostgreSQL.
+
+### KPI Dashboard Flow
+1.  Authenticated admin clients call `GET /api/dashboard/stats`.
+2.  The API aggregates business metrics (revenue, payment mix, bookings, package performance).
+3.  The frontend dashboard renders these KPIs for operational monitoring.
+
 ### Authentication
 1.  Administrative access is restricted and performed via **Google Login**.
 2.  The admin logs in on the frontend with their Google account.
@@ -68,8 +81,8 @@ api-brunaphoto-vercel/
 │   ├── database/       # Instantiated Prisma Client
 │   ├── errors/         # Custom error classes (HttpError)
 │   ├── middlewares/    # Middlewares (Auth, Upload, Validation, Error)
-│   ├── routes/         # Endpoint definitions and routing
-│   ├── services/       # Business logic (PostService, EmailService)
+│   ├── routes/         # Endpoint definitions and routing (posts, auth, checkout, webhooks, packages, bookings, dashboard)
+│   ├── services/       # Business logic (PostService, EmailService, StripeService, PackageService)
 │   ├── utils/          # Utility functions (JWT, Vercel Blob helpers)
 │   └── types.ts        # Global TypeScript type definitions
 ├── vercel.json         # Vercel routing and rewrites configuration
@@ -103,6 +116,10 @@ SMTP_PASS="password"
 
 # Vercel Blob (Image Storage)
 BLOB_READ_WRITE_TOKEN="your-vercel-blob-token"
+
+# Stripe
+STRIPE_SECRET_KEY="sk_live_or_test_xxx"
+STRIPE_WEBHOOK_SECRET="whsec_xxx"
 ```
 
 ### Installation
@@ -141,6 +158,27 @@ BLOB_READ_WRITE_TOKEN="your-vercel-blob-token"
 
 ### Contact
 - `POST /api/contact`: Send contact form.
+
+### Packages
+- `GET /api/packages`: Public package listing.
+- `GET /api/packages/:id`: Public package details.
+- `GET /api/packages/admin/all`: Admin package listing (Auth Required).
+- `POST /api/packages`: Create package (Auth Required).
+- `PUT /api/packages/:id`: Update package (Auth Required).
+- `DELETE /api/packages/:id`: Delete package (Auth Required).
+
+### Checkout & Payments
+- `POST /api/checkout/session`: Create Stripe Checkout session.
+- `POST /api/checkout/manual`: Create manual/bank-transfer booking.
+- `POST /api/webhooks/stripe`: Stripe webhook receiver.
+
+### Bookings (Admin)
+- `GET /api/bookings`: List bookings (Auth Required).
+- `POST /api/bookings/:id/confirm`: Confirm booking payment (Auth Required).
+- `DELETE /api/bookings/:id`: Delete booking (Auth Required).
+
+### Dashboard (Admin)
+- `GET /api/dashboard/stats`: KPI and business metrics (Auth Required).
 
 ### Uploads
 - `POST /api/uploads/image`: Single image upload (Auth Required).
