@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { CheckoutController } from '../controllers/checkoutController';
 import { validateRequest } from '../middlewares/zodValidation';
-import { checkoutSessionSchema } from '../schemas/checkoutSchema';
+import { checkoutManualSchema, checkoutSessionSchema, generatePaymentLinkSchema } from '../schemas/checkoutSchema';
 import { rateLimit } from 'express-rate-limit'; // Fixed import
+import { requireAuth } from '../middlewares/auth';
 
 const router = Router();
 
@@ -21,6 +22,15 @@ const checkoutLimiter = rateLimit({
 // Route for frontend to call and generate payment session
 // POST /api/checkout/session
 router.post(
+  '/link',
+  requireAuth,
+  validateRequest(generatePaymentLinkSchema),
+  CheckoutController.generatePaymentLink
+);
+
+// Route for frontend to call and generate payment session
+// POST /api/checkout/session
+router.post(
   '/session', 
   checkoutLimiter,
   validateRequest(checkoutSessionSchema),
@@ -32,6 +42,7 @@ router.post(
 router.post(
   '/manual',
   checkoutLimiter,
+  validateRequest(checkoutManualSchema),
   CheckoutController.createManualBooking
 );
 

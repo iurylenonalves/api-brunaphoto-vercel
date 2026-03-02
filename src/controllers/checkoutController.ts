@@ -2,22 +2,82 @@ import { Request, Response } from 'express';
 import { StripeService } from '../services/StripeService';
 import { prisma } from '../database/client';
 import { sendBookingConfirmation, sendAdminBookingNotification } from '../services/EmailService';
+import { generatePaymentLinkToken, verifyPaymentLinkToken } from '../utils/paymentLinkToken';
 
 export class CheckoutController {
+
+  static async generatePaymentLink(req: Request, res: Response) {
+    try {
+      const { packageId, paymentType, paymentMethod, locale, sessionDate } = req.body;
+
+      const pkg = await prisma.package.findUnique({ where: { id: packageId } });
+      if (!pkg) {
+        return res.status(404).json({ error: 'Package not found' });
+      }
+
+      if (!pkg.active) {
+        return res.status(400).json({ error: 'This package is no longer active.' });
+      }
+
+      const token = generatePaymentLinkToken({
+        packageId,
+        paymentType,
+        paymentMethod,
+        locale,
+        sessionDate,
+      });
+
+      const frontendBaseUrl = (
+        process.env.FRONTEND_URL ||
+        (req.headers.origin as string | undefined) ||
+        'https://brunaalvesphoto.com'
+      ).replace(/\/$/, '');
+
+      const url = `${frontendBaseUrl}/${locale}/payment?token=${encodeURIComponent(token)}`;
+      const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000)).toISOString();
+
+      return res.status(201).json({ url, expiresAt });
+    } catch (error: any) {
+      console.error('Generate Payment Link Error:', error);
+      return res.status(500).json({ error: error.message || 'Failed to generate payment link' });
+    }
+  }
+
+  private static validateLockedToken(req: Request) {
+    const lockedToken = req.body.lockedToken as string | undefined;
+    if (!lockedToken) {
+      return { error: 'Locked payment link token is required' };
+    }
+
+    const lockedPayload = verifyPaymentLinkToken(lockedToken);
+    if (!lockedPayload) {
+      return { error: 'Invalid or expired payment link. Please request a new one.' };
+    }
+
+    return { lockedPayload };
+  }
   
   static async createSession(req: Request, res: Response) {
     try {
-      const { packageId, paymentType, locale, customerEmail, sessionDate } = req.body;
+      const { customerEmail } = req.body;
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined;
       const termsAcceptedAt = new Date().toISOString(); // Capture exact server time of acceptance
+
+      const lockValidation = CheckoutController.validateLockedToken(req);
+      if (lockValidation.error) {
+        return res.status(401).json({ error: lockValidation.error });
+      }
+
+      const lockedPayload = lockValidation.lockedPayload!;
+      const { packageId, paymentType, locale, sessionDate, paymentMethod } = lockedPayload;
 
       // Securely capture Client IP and User Agent for Audit Trail
       // On Vercel/proxies, IP is often in x-forwarded-for
       const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
       const clientUserAgent = req.headers['user-agent'] || 'unknown';
 
-      if (!packageId || !paymentType) {
-        return res.status(400).json({ error: 'Missing packageId or paymentType' });
+      if (paymentMethod !== 'CARD') {
+        return res.status(400).json({ error: 'This payment link only supports bank transfer.' });
       }
 
       // Fetch dynamic price from Database
@@ -70,7 +130,7 @@ export class CheckoutController {
         customerEmail,
         successUrl,
         cancelUrl,
-        sessionDate: sessionDate || undefined, // Pass date to Stripe
+        sessionDate: sessionDate || undefined,
         idempotencyKey,
         termsAccepted: "true",
         termsAcceptedAt,
@@ -87,13 +147,25 @@ export class CheckoutController {
 
   static async createManualBooking(req: Request, res: Response) {
     try {
-      const { packageId, paymentType, locale, customerEmail, customerName, sessionDate } = req.body;
+      const { customerEmail, customerName } = req.body;
       const termsAcceptedAt = new Date().toISOString();
       const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
       const clientUserAgent = req.headers['user-agent'] || 'unknown';
 
-      if (!packageId || !paymentType || !customerEmail || !customerName) {
+      const lockValidation = CheckoutController.validateLockedToken(req);
+      if (lockValidation.error) {
+        return res.status(401).json({ error: lockValidation.error });
+      }
+
+      const lockedPayload = lockValidation.lockedPayload!;
+      const { packageId, paymentType, locale, sessionDate, paymentMethod } = lockedPayload;
+
+      if (!customerEmail || !customerName) {
         return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      if (paymentMethod !== 'BANK_TRANSFER') {
+        return res.status(400).json({ error: 'This payment link only supports card checkout.' });
       }
 
       const pkg = await prisma.package.findUnique({ where: { id: packageId } });
