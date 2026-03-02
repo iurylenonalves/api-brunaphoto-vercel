@@ -13,9 +13,7 @@ const localeSchema = z.enum(['en', 'pt']);
 export const checkoutSessionSchema = z.object({
   lockedToken: z.string().min(1, 'Locked payment token is required'),
   customerEmail: z.string().email("Invalid email address").optional(),
-  termsAccepted: z.literal(true, {
-    errorMap: () => ({ message: "You must accept the terms and conditions" })
-  }),
+  termsAccepted: z.boolean().optional(),
 });
 
 export type CheckoutSessionInput = z.infer<typeof checkoutSessionSchema>;
@@ -24,9 +22,7 @@ export const checkoutManualSchema = z.object({
   lockedToken: z.string().min(1, 'Locked payment token is required'),
   customerName: z.string().min(2, 'Customer name is required'),
   customerEmail: z.string().email('Invalid email address'),
-  termsAccepted: z.literal(true, {
-    errorMap: () => ({ message: 'You must accept the terms and conditions' })
-  }),
+  termsAccepted: z.boolean().optional(),
 });
 
 export type CheckoutManualInput = z.infer<typeof checkoutManualSchema>;

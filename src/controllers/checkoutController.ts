@@ -59,9 +59,8 @@ export class CheckoutController {
   
   static async createSession(req: Request, res: Response) {
     try {
-      const { customerEmail } = req.body;
+      const { customerEmail, termsAccepted } = req.body;
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined;
-      const termsAcceptedAt = new Date().toISOString(); // Capture exact server time of acceptance
 
       const lockValidation = CheckoutController.validateLockedToken(req);
       if (lockValidation.error) {
@@ -70,6 +69,14 @@ export class CheckoutController {
 
       const lockedPayload = lockValidation.lockedPayload!;
       const { packageId, paymentType, locale, sessionDate, paymentMethod } = lockedPayload;
+      const requiresTermsAcceptance = paymentType !== 'BALANCE';
+
+      if (requiresTermsAcceptance && !termsAccepted) {
+        return res.status(400).json({ error: 'You must accept the terms and conditions to proceed.' });
+      }
+
+      const termsAcceptedValue = requiresTermsAcceptance ? 'true' : 'false';
+      const termsAcceptedAtValue = requiresTermsAcceptance ? new Date().toISOString() : undefined;
 
       // Securely capture Client IP and User Agent for Audit Trail
       // On Vercel/proxies, IP is often in x-forwarded-for
@@ -132,8 +139,8 @@ export class CheckoutController {
         cancelUrl,
         sessionDate: sessionDate || undefined,
         idempotencyKey,
-        termsAccepted: "true",
-        termsAcceptedAt,
+        termsAccepted: termsAcceptedValue,
+        termsAcceptedAt: termsAcceptedAtValue,
         clientIp,
         clientUserAgent,
       });
@@ -147,7 +154,7 @@ export class CheckoutController {
 
   static async createManualBooking(req: Request, res: Response) {
     try {
-      const { customerEmail, customerName } = req.body;
+      const { customerEmail, customerName, termsAccepted } = req.body;
       const termsAcceptedAt = new Date().toISOString();
       const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
       const clientUserAgent = req.headers['user-agent'] || 'unknown';
@@ -159,9 +166,14 @@ export class CheckoutController {
 
       const lockedPayload = lockValidation.lockedPayload!;
       const { packageId, paymentType, locale, sessionDate, paymentMethod } = lockedPayload;
+      const requiresTermsAcceptance = paymentType !== 'BALANCE';
 
       if (!customerEmail || !customerName) {
         return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      if (requiresTermsAcceptance && !termsAccepted) {
+        return res.status(400).json({ error: 'You must accept the terms and conditions to proceed.' });
       }
 
       if (paymentMethod !== 'BANK_TRANSFER') {
@@ -185,8 +197,8 @@ export class CheckoutController {
               status: 'pending', // Pending transfer
               packageId,
               sessionDate: sessionDate ? new Date(sessionDate) : null,
-              termsAccepted: true,
-              termsAcceptedAt: new Date(termsAcceptedAt),
+              termsAccepted: requiresTermsAcceptance ? true : false,
+              termsAcceptedAt: requiresTermsAcceptance ? new Date(termsAcceptedAt) : null,
               clientIp,
               clientUserAgent,
               stripeSessionId: null,
