@@ -86,6 +86,14 @@ export async function sendBookingConfirmation(details: BookingEmailDetails): Pro
        </div>`
     : '';
 
+  const closingTextPt = details.paymentType === 'BALANCE'
+    ? 'Obrigada por concluir o pagamento da sua sessão.'
+    : 'Em breve entrarei em contato para confirmarmos os próximos passos da sua sessão.';
+
+  const closingTextEn = details.paymentType === 'BALANCE'
+    ? 'Thank you for completing your session payment.'
+    : 'I will be in touch shortly to confirm the next steps for your session.';
+
   const messageBodyPt = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #333;">Olá, ${details.customerName}!</h2>
@@ -101,7 +109,7 @@ export async function sendBookingConfirmation(details: BookingEmailDetails): Pro
 
       ${receiptButtonHtml}
 
-      <p>Em breve entrarei em contato para confirmarmos os próximos passos da sua sessão.</p>
+      <p>${closingTextPt}</p>
 
       ${policyTextPt}
       
@@ -124,7 +132,7 @@ export async function sendBookingConfirmation(details: BookingEmailDetails): Pro
 
       ${receiptButtonHtml}
 
-      <p>I will be in touch shortly to confirm the next steps for your session.</p>
+      <p>${closingTextEn}</p>
       
       ${policyTextEn}
       
