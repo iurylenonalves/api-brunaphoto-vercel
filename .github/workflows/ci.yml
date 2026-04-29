@@ -1,0 +1,40 @@
+name: CI Backend
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  typecheck-test:
+    name: Lint, Typecheck and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run tests with coverage
+        env:
+          JWT_SECRET: test-jwt-secret
+          GOOGLE_CLIENT_ID: test-google-client-id
+          ALLOWED_ADMINS: admin@example.com
+          NODE_ENV: test
+          STRIPE_SECRET_KEY: sk_test_placeholder_for_ci_tests_only
+        run: npm run test:coverage
