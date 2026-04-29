@@ -8,7 +8,7 @@ on:
 
 jobs:
   typecheck-test:
-    name: Typecheck and Test
+    name: Lint, Typecheck and Test
     runs-on: ubuntu-latest
 
     steps:
@@ -24,8 +24,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
 
       - name: Run tests with coverage
+        env:
+          JWT_SECRET: test-jwt-secret
+          GOOGLE_CLIENT_ID: test-google-client-id
+          ALLOWED_ADMINS: admin@example.com
+          NODE_ENV: test
         run: npm run test:coverage
