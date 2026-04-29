@@ -36,4 +36,5 @@ jobs:
           GOOGLE_CLIENT_ID: test-google-client-id
           ALLOWED_ADMINS: admin@example.com
           NODE_ENV: test
+          STRIPE_SECRET_KEY: sk_test_placeholder_for_ci_tests_only
         run: npm run test:coverage
