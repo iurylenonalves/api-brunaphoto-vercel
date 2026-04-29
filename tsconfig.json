@@ -5,7 +5,8 @@
     "outDir": "./dist",   
     "strict": true,
     "esModuleInterop": true,
-  "moduleResolution": "node",
+    "moduleResolution": "node",
+    "types": ["node", "vitest/globals"],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
