@@ -14,8 +14,13 @@ export default defineConfig({
         'src/controllers/authController.ts',
         'src/controllers/checkoutController.ts',
         'src/middlewares/auth.ts',
+        'src/middlewares/error-handler.ts',
         'src/middlewares/zodValidation.ts',
         'src/schemas/checkoutSchema.ts',
+        'src/services/EmailService.ts',
+        'src/services/StripeService.ts',
+        'src/utils/jwt.ts',
+        'src/utils/paymentLinkToken.ts',
       ],
       exclude: ['src/**/index.ts'],
       thresholds: {
