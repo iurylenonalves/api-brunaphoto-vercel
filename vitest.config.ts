@@ -12,7 +12,9 @@ export default defineConfig({
       include: [
         'src/app.ts',
         'src/controllers/authController.ts',
+        'src/controllers/bookingController.ts',
         'src/controllers/checkoutController.ts',
+        'src/controllers/packageController.ts',
         'src/middlewares/auth.ts',
         'src/middlewares/error-handler.ts',
         'src/middlewares/zodValidation.ts',
