@@ -144,6 +144,114 @@ STRIPE_WEBHOOK_SECRET="whsec_xxx"
     npm run dev
     ```
 
+## 🧪 Testing
+
+The backend has comprehensive test coverage using **Vitest**, **Supertest**, and **@vitest/coverage-v8**.
+
+### Test Stack
+- **Test Runner:** [Vitest](https://vitest.dev/)
+- **HTTP Testing:** [Supertest](https://github.com/visionmedia/supertest)
+- **Coverage:** @vitest/coverage-v8
+- **Environment:** Node.js
+
+### Test Structure
+
+Tests are organized by layer (116 tests, 17 test files):
+
+```
+src/
+├── app.test.ts                         # Health endpoint
+├── controllers/
+│   ├── authController.test.ts          # Google OAuth validation
+│   ├── bookingController.test.ts       # Booking operations (get, confirm, delete)
+│   ├── checkoutController.test.ts      # Stripe session creation
+│   └── packageController.test.ts       # Package CRUD
+├── middlewares/
+│   ├── auth.test.ts                    # JWT validation and auth enforcement
+│   ├── error-handler.test.ts           # Error response formatting
+│   └── zodValidation.test.ts           # Request schema validation
+├── schemas/
+│   └── checkoutSchema.test.ts          # Zod validation schemas
+├── services/
+│   ├── EmailService.test.ts            # Nodemailer contact/booking emails
+│   └── StripeService.test.ts           # Stripe session creation and webhooks
+├── routes/
+│   ├── bookingRoutes.test.ts           # Auth enforcement on booking endpoints
+│   ├── checkoutRoutes.test.ts          # Checkout flow with rate limiting
+│   ├── packageRoutes.test.ts           # Public/protected package routes
+│   └── webhookRoutes.test.ts           # Stripe webhook receiver
+└── utils/
+    ├── jwt.test.ts                     # JWT generation and verification
+    └── paymentLinkToken.test.ts        # Secure payment link tokens
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Watch mode (for development)
+npm test -- --watch
+
+# Generate coverage report
+npm run test:coverage
+
+# Run specific test file
+npm test -- src/controllers/checkoutController.test.ts
+```
+
+### Coverage Report
+
+Current coverage (Phase 4b):
+- **Lines:** 94.55% (threshold: 80%)
+- **Statements:** 94.55% (threshold: 80%)
+- **Functions:** 94.28% (threshold: 80%)
+- **Branches:** 80.54% (threshold: 70%)
+
+HTML coverage report generated at `coverage/index.html` after running `npm run test:coverage`.
+
+### Test Categories
+
+#### Unit Tests
+- Isolated logic testing: utilities, schemas, service methods.
+- Examples: JWT generation, email formatting, schema validation.
+
+#### Integration Tests (Controllers + Routes)
+- Full request/response cycle with mocked externals (database, Stripe, Nodemailer).
+- Examples: POST /api/checkout/session, GET /api/packages, POST /api/webhooks/stripe.
+
+#### Middleware Tests
+- Auth validation, error handling, request validation.
+- Examples: JWT verification, 401 enforcement, Zod schema validation errors.
+
+### Key Testing Patterns
+
+1. **Mocking Externals**
+   - Database: `vi.mock('../database/client')`
+   - Services: `vi.mock('../services/StripeService')`
+   - HTTP clients: `vi.mock('axios')`
+   - Rate limiting: `vi.mock('express-rate-limit')` (passthrough in tests)
+
+2. **HTTP Testing**
+   - Supertest for isolated route testing (no full app initialization).
+   - Mock `verifyJWT` to control auth behavior without real tokens.
+
+3. **SSR & Environment**
+   - Tests run in Node.js environment via `environment: 'node'` in vitest.config.ts.
+   - Secrets and tokens read from `tests/setup.ts` defaults during test execution.
+
+### CI/CD Integration
+
+Tests are automatically run on every push via GitHub Actions job: **`Lint, Typecheck and Test`**
+
+Requirements for main branch:
+- All tests must pass
+- Coverage thresholds must be met (lines 80%, branches 70%)
+- Linting and typecheck must pass
+
+See `.github/workflows/ci.yml` for full workflow definition.
+
 ## 📡 Main Endpoints
 
 ### Auth
